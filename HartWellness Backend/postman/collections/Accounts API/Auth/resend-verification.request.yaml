@@ -1,0 +1,26 @@
+$kind: http-request
+name: 'Resend Verification Email'
+method: POST
+url: '{{baseUrl}}/api/auth/resend-verification/'
+order: 1050
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 200", function () {
+        pm.response.to.have.status(200);
+      });
+
+      const jsonData = pm.response.json();
+
+      pm.test("Resend response returned", function () {
+        pm.expect(jsonData).to.have.property("detail");
+      });
