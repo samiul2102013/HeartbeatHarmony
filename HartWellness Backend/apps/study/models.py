@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
 
 
 class StudyTopic(models.Model):
@@ -94,15 +95,21 @@ class Quiz(models.Model):
 
 
 class Question(models.Model):
-    """MCQ question — always 4 options, one correct."""
+    """MCQ question — directly under a topic, 2–4 options, one correct."""
+    topic = models.ForeignKey(
+        StudyTopic, on_delete=models.CASCADE, related_name='questions',
+        null=True, blank=True
+    )
     quiz = models.ForeignKey(
-        Quiz, on_delete=models.CASCADE, related_name='questions'
+        Quiz, on_delete=models.CASCADE, related_name='questions',
+        null=True, blank=True,
+        help_text='Optional: legacy quiz grouping (deprecated)'
     )
     text = models.TextField()
     option_a = models.CharField(max_length=300)
     option_b = models.CharField(max_length=300)
-    option_c = models.CharField(max_length=300)
-    option_d = models.CharField(max_length=300)
+    option_c = models.CharField(max_length=300, blank=True, default='')
+    option_d = models.CharField(max_length=300, blank=True, default='')
     correct_option = models.CharField(
         max_length=1,
         choices=[('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')]
@@ -113,18 +120,40 @@ class Question(models.Model):
         db_table = 'quiz_questions'
         ordering = ['order']
 
+    def clean(self):
+        super().clean()
+        valid_options = []
+        if self.option_a:
+            valid_options.append('A')
+        if self.option_b:
+            valid_options.append('B')
+        if self.option_c:
+            valid_options.append('C')
+        if self.option_d:
+            valid_options.append('D')
+        if len(valid_options) < 2:
+            raise ValidationError('At least 2 options are required.')
+        if self.correct_option not in valid_options:
+            raise ValidationError(f'Correct option must be one of the provided options: {valid_options}.')
+
     def __str__(self):
-        return f"{self.quiz.title} — Q{self.order}"
+        return f"{self.topic.title if self.topic else 'No Topic'} — Q{self.order}"
 
 
 class QuizAttempt(models.Model):
-    """A user's completed quiz attempt with score."""
+    """A user's completed quiz attempt with score — tied to a topic."""
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='quiz_attempts'
     )
+    topic = models.ForeignKey(
+        StudyTopic, on_delete=models.CASCADE, related_name='attempts',
+        null=True, blank=True
+    )
     quiz = models.ForeignKey(
-        Quiz, on_delete=models.CASCADE, related_name='attempts'
+        Quiz, on_delete=models.CASCADE, related_name='attempts',
+        null=True, blank=True,
+        help_text='Optional: legacy quiz reference (deprecated)'
     )
     score = models.PositiveSmallIntegerField(default=0)
     total_questions = models.PositiveSmallIntegerField(default=0)
@@ -141,7 +170,8 @@ class QuizAttempt(models.Model):
         return round((self.score / self.total_questions) * 100, 1)
 
     def __str__(self):
-        return f"{self.user.username} — {self.quiz.title} — {self.score}/{self.total_questions}"
+        topic_title = self.topic.title if self.topic else 'No Topic'
+        return f"{self.user.username} — {topic_title} — {self.score}/{self.total_questions}"
 
 
 class QuizAnswer(models.Model):

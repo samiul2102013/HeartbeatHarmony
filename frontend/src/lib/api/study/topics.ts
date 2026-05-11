@@ -34,4 +34,7 @@ export type StudyTopic = {
   title: string;
   name?: string;
   description?: string;
+  last_correct_answers?: number;
+  last_total_questions?: number;
+  last_attempted_score?: number;
 };

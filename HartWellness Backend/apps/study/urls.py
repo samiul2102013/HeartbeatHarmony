@@ -15,6 +15,7 @@ urlpatterns = [
 
     # Quiz
     re_path(r'^study/quizzes/submit/?$', views.QuizSubmitView.as_view()),
+    re_path(r'^study/topics/submit/?$', views.TopicQuizSubmitView.as_view()),
     re_path(r'^study/quizzes/?$', views.QuizListView.as_view()),
     re_path(r'^study/quizzes/(?P<pk>\d+)/?$', views.QuizDetailView.as_view()),
 

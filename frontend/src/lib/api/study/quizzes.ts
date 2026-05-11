@@ -50,6 +50,9 @@ export type StudyQuiz = {
 
 export type StudyQuestion = {
   id: number;
+  topic: number;
+  topic_id?: number;
+  topic_title?: string;
   quiz: number;
   text: string;
   option_a: string;

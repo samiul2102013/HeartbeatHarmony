@@ -24,6 +24,7 @@ export type QuizOption = {
 export type QuizQuestion = {
 	id: number;
 	topic: string;
+	topicId: number;
 	title: string;
 	options: QuizOption[];
 };
@@ -42,6 +43,7 @@ export type QuizPayload = {
 };
 
 type QuizScoreRow = {
+	id: number;
 	user: string;
 	score: number;
 };
@@ -116,6 +118,13 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 	const [markAsCorrect, setMarkAsCorrect] = useState(false);
 	const [currentOptions, setCurrentOptions] = useState<QuizOption[]>([]);
 	const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+	const [editingOptionId, setEditingOptionId] = useState<number | null>(null);
+	const [draftOptionText, setDraftOptionText] = useState("");
+	const [draftOptionCorrect, setDraftOptionCorrect] = useState(false);
+	const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
+	const [draftQuestionTitle, setDraftQuestionTitle] = useState("");
+	const [draftQuestionOptions, setDraftQuestionOptions] = useState<QuizOption[]>([]);
+	const [draftCorrectIndex, setDraftCorrectIndex] = useState(0);
 
 	const reset = () => {
 		setStep(1);
@@ -127,6 +136,13 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 		setMarkAsCorrect(false);
 		setCurrentOptions([]);
 		setQuestions([]);
+		setEditingOptionId(null);
+		setDraftOptionText("");
+		setDraftOptionCorrect(false);
+		setEditingQuestionId(null);
+		setDraftQuestionTitle("");
+		setDraftQuestionOptions([]);
+		setDraftCorrectIndex(0);
 	};
 
 	const addOption = () => {
@@ -138,6 +154,39 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 		]);
 		setOptionText("");
 		setMarkAsCorrect(false);
+	};
+
+	const startEditOption = (option: QuizOption) => {
+		setEditingOptionId(option.id);
+		setDraftOptionText(option.text);
+		setDraftOptionCorrect(option.isCorrect);
+	};
+
+	const cancelEditOption = () => {
+		setEditingOptionId(null);
+		setDraftOptionText("");
+		setDraftOptionCorrect(false);
+	};
+
+	const saveEditedOption = (optionId: number) => {
+		const nextText = draftOptionText.trim();
+		if (!nextText) return;
+
+		setCurrentOptions((prev) =>
+			prev.map((option) =>
+				option.id === optionId
+					? { ...option, text: nextText, isCorrect: draftOptionCorrect }
+					: option
+			)
+		);
+		cancelEditOption();
+	};
+
+	const deleteOption = (optionId: number) => {
+		setCurrentOptions((prev) => prev.filter((option) => option.id !== optionId));
+		if (editingOptionId === optionId) {
+			cancelEditOption();
+		}
 	};
 
 	const selectedTopic = topics.find((t) => String(t.id) === topicId);
@@ -153,6 +202,7 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 			{
 				id: Date.now(),
 				topic: selectedTopic?.title ?? "",
+				topicId: selectedTopic?.id ?? Number(topicId),
 				title,
 				options: currentOptions,
 			},
@@ -161,6 +211,45 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 		setCurrentOptions([]);
 	};
 
+	const startEditQuestion = (question: QuizQuestion) => {
+		setEditingQuestionId(question.id);
+		setDraftQuestionTitle(question.title);
+		setDraftQuestionOptions(question.options.map((option) => ({ ...option })));
+		setDraftCorrectIndex(question.options.findIndex((option) => option.isCorrect));
+	};
+
+	const cancelEditQuestion = () => {
+		setEditingQuestionId(null);
+		setDraftQuestionTitle("");
+		setDraftQuestionOptions([]);
+		setDraftCorrectIndex(0);
+	};
+
+	const saveEditedQuestion = (questionId: number) => {
+		const title = draftQuestionTitle.trim();
+		if (!title || draftQuestionOptions.length < 2) return;
+
+		const nextOptions = draftQuestionOptions.map((option, index) => ({
+			...option,
+			text: option.text.trim(),
+			isCorrect: index === draftCorrectIndex,
+		}));
+
+		if (nextOptions.some((option) => !option.text)) return;
+
+		setQuestions((prev) =>
+			prev.map((question) =>
+				question.id === questionId
+					? {
+						...question,
+						title,
+						options: nextOptions,
+					}
+					: question
+			)
+		);
+		cancelEditQuestion();
+	};
 	const submitQuiz = () => {
 		if (!quizTitle.trim() || !quizDate || questions.length === 0) return;
 		onSubmit?.({
@@ -284,11 +373,40 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 						{currentOptions.length > 0 && (
 							<div className="rounded-lg border border-border p-3 space-y-2">
 								<p className="text-sm font-semibold">Current options</p>
-								{currentOptions.map((option, idx) => (
-									<p key={option.id} className="text-sm text-muted-foreground">
-										{idx + 1}. {option.text} {option.isCorrect ? "(Correct)" : ""}
-									</p>
-								))}
+								{currentOptions.map((option, idx) => {
+									const isEditing = editingOptionId === option.id;
+									return (
+										<div key={option.id} className="space-y-2 rounded-md border border-border/60 bg-background p-3">
+											{!isEditing ? (
+												<div className="flex items-start justify-between gap-3">
+													<p className="text-sm text-muted-foreground">
+														{idx + 1}. {option.text} {option.isCorrect ? "(Correct)" : ""}
+													</p>
+													<div className="flex shrink-0 gap-2">
+														<Button type="button" variant="ghost" className="h-7 px-2 text-xs" onClick={() => startEditOption(option)}>
+															Edit
+														</Button>
+														<Button type="button" variant="ghost" className="h-7 px-2 text-xs text-destructive" onClick={() => deleteOption(option.id)}>
+															Delete
+														</Button>
+													</div>
+												</div>
+											) : (
+												<div className="space-y-3">
+													<Input value={draftOptionText} onChange={(e) => setDraftOptionText(e.target.value)} className="h-10 text-sm" />
+													<label className="inline-flex items-center gap-2 text-xs text-foreground">
+														<Checkbox checked={draftOptionCorrect} onCheckedChange={(checked) => setDraftOptionCorrect(Boolean(checked))} />
+														Marked as correct answer
+													</label>
+													<div className="flex gap-2">
+														<Button type="button" variant="outline" className="h-8 text-xs" onClick={cancelEditOption}>Cancel</Button>
+														<Button type="button" className="h-8 text-xs" style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }} onClick={() => saveEditedOption(option.id)}>Save</Button>
+													</div>
+												</div>
+											)}
+										</div>
+									);
+								})}
 							</div>
 						)}
 
@@ -309,17 +427,77 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 								<p className="text-base font-semibold">Question List</p>
 								{questions.map((question, qIdx) => {
 									const correctIndex = question.options.findIndex((opt) => opt.isCorrect);
+									const isEditing = editingQuestionId === question.id;
 									return (
 										<div key={question.id} className="space-y-2">
-											<p className="text-sm font-medium">{qIdx + 1}. {question.title}</p>
-											{question.options.map((option) => (
-												<p key={option.id} className="text-xs text-muted-foreground">○ {option.text}</p>
-											))}
-											<p className="text-sm font-medium">
-												Subject: {question.topic} &nbsp; Correct Answer: {correctIndex >= 0 ? alphabetLabel(correctIndex) : "-"}
-											</p>
-										</div>
-									);
+											{!isEditing ? (
+												<>
+													<div className="flex items-start justify-between gap-3">
+														<p className="text-sm font-medium">
+															{qIdx + 1}. {question.title}
+														</p>
+														<Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => startEditQuestion(question)}>
+															Edit
+														</Button>
+													</div>
+													{question.options.map((option) => (
+														<p key={option.id} className="text-xs text-muted-foreground">○ {option.text}</p>
+													))}
+													<p className="text-sm font-medium">
+														Subject: {question.topic} &nbsp; Correct Answer: {correctIndex >= 0 ? alphabetLabel(correctIndex) : "-"}
+													</p>
+												</>
+											) : (
+												<div className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
+													<div className="space-y-1.5">
+														<Label className="text-xs font-semibold">Question</Label>
+														<Input value={draftQuestionTitle} onChange={(e) => setDraftQuestionTitle(e.target.value)} className="h-10 text-sm" />
+													</div>
+
+													<div className="space-y-2">
+														<Label className="text-xs font-semibold">Options</Label>
+														{draftQuestionOptions.map((option, optIdx) => (
+															<div key={option.id} className="flex items-center gap-2">
+																<Input
+																	value={option.text}
+																	onChange={(e) => {
+																		const next = [...draftQuestionOptions];
+																		next[optIdx] = { ...next[optIdx], text: e.target.value };
+																		setDraftQuestionOptions(next);
+																	}}
+																	className="h-10 text-sm flex-1"
+																/>
+																<label className="inline-flex items-center gap-1.5 text-xs text-foreground shrink-0">
+																	<input
+																		type="radio"
+																		name={`edit-correct-${question.id}`}
+																		checked={draftCorrectIndex === optIdx}
+																		onChange={() => setDraftCorrectIndex(optIdx)}
+																		className="h-4 w-4"
+																	/>
+																	Correct
+																</label>
+															</div>
+														))}
+													</div>
+
+													<div className="flex gap-2 pt-1">
+														<Button type="button" variant="outline" className="h-8 text-xs" onClick={cancelEditQuestion}>
+															Cancel
+														</Button>
+														<Button
+															type="button"
+															className="h-8 text-xs"
+															style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
+															onClick={() => saveEditedQuestion(question.id)}
+														>
+															Save Changes
+														</Button>
+													</div>
+												</div>
+										)}
+									</div>
+								);
 								})}
 							</div>
 						)}
@@ -540,7 +718,7 @@ export function QuizScoreModal({ open, onOpenChange, quizTitle, scores }: QuizSc
 							<p className="text-right">Score</p>
 						</div>
 						{rows.map((row) => (
-							<div key={row.user} className="grid grid-cols-2 px-4 py-2 border-t border-border">
+							<div key={row.id} className="grid grid-cols-2 px-4 py-2 border-t border-border">
 								<p className="text-sm font-medium text-foreground">{row.user}</p>
 								<p className="text-sm text-right font-semibold" style={{ color: row.score >= 80 ? "#16a34a" : row.score >= 60 ? "#ca8a04" : "#dc2626" }}>
 									{row.score}%

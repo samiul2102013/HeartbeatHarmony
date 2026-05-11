@@ -35,8 +35,10 @@ export const deletePlan = (id: number) =>
 
 export type PlanFeature = {
   id: number;
+  plan?: number;
   title: string;
   is_included: boolean;
+  order?: number;
 };
 
 export type PricingPlan = {

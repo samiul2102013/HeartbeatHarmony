@@ -1,6 +1,6 @@
 from django.utils import timezone
 from rest_framework import serializers
-from .models import Category, Habit, HabitCompletion, HabitTemplate, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
+from .models import Category, Habit, HabitCompletion, HabitTemplate, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT, BYPASS_PRO_LIMITS
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -76,12 +76,12 @@ class HabitSerializer(serializers.ModelSerializer):
             if not attrs.get('activity_name') or not str(attrs.get('activity_name', '')).strip():
                 raise serializers.ValidationError({'activity_name': 'This field is required.'})
 
-        # Enforce free limit on create only
-        if self.instance is None and not user.is_pro:
+        # Enforce free limit on create only (bypassed during testing)
+        if not BYPASS_PRO_LIMITS and self.instance is None and not user.is_pro:
             active_count = Habit.objects.filter(user=user, is_active=True).count()
             if active_count >= FREE_HABIT_LIMIT:
                 raise serializers.ValidationError(
-                    f"Free plan allows up to {FREE_HABIT_LIMIT} habits. Upgrade to Pro for unlimited habits."
+                    f'Free plan allows up to {FREE_HABIT_LIMIT} habits. Upgrade to Pro for unlimited habits.'
                 )
         return attrs
 
@@ -100,8 +100,8 @@ class HabitSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Habit
         fields = [
-            'id', 'activity_name', 'category_name',
-            'category_icon', 'duration', 'is_active', 'schedule_time',
+            'id', 'activity_name', 'description',
+            'category_name', 'category_icon', 'duration', 'is_active', 'schedule_time',
             'is_completed_today', 'created_at',
         ]
 

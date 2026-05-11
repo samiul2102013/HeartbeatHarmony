@@ -7,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from django.contrib.auth import get_user_model
 
-from .models import Category, Habit, HabitCompletion, HabitTemplate, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
+from .models import Category, Habit, HabitCompletion, HabitTemplate, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT, BYPASS_PRO_LIMITS
 from .serializers import (
     CategorySerializer, HabitSerializer, HabitSummarySerializer,
     HabitCompletionSerializer,
@@ -73,16 +73,30 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
             user=user, completed_date=today
         ).count()
 
-        return success_response({
-            'habits': serializer.data,
-            'count': queryset.count(),
-            'limit': FREE_HABIT_LIMIT,
-            'is_pro': getattr(user, 'is_pro', False),
-            'can_create': getattr(user, 'is_pro', False) or queryset.count() < FREE_HABIT_LIMIT,
-            'daily_completions': completions_today,
-            'daily_completion_limit': DAILY_COMPLETION_LIMIT,
-            'can_complete': completions_today < DAILY_COMPLETION_LIMIT,
-        })
+        is_pro = BYPASS_PRO_LIMITS or getattr(user, 'is_pro', False)
+        count = queryset.count()
+        return success_response(
+            {
+                'habits': serializer.data,
+                'count': count,
+                'limit': FREE_HABIT_LIMIT,
+                'is_pro': is_pro,
+                'can_create': is_pro or count < FREE_HABIT_LIMIT,
+                'daily_completions': completions_today,
+                'daily_completion_limit': DAILY_COMPLETION_LIMIT,
+                'can_complete': BYPASS_PRO_LIMITS or completions_today < DAILY_COMPLETION_LIMIT,
+            },
+            metadata={
+                'current_page': 1,
+                'per_page': count or 20,
+                'total_items': count,
+                'total_pages': 1,
+                'has_next_page': False,
+                'has_previous_page': False,
+                'next_page': None,
+                'previous_page': None,
+            }
+        )
 
 
 class HabitDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):
@@ -134,7 +148,7 @@ class HabitMarkDoneView(StandardizedResponseMixin, APIView):
             user=user, completed_date=today
         ).count()
 
-        if completions_today >= DAILY_COMPLETION_LIMIT:
+        if not BYPASS_PRO_LIMITS and completions_today >= DAILY_COMPLETION_LIMIT:
             return error_response(
                 f'Daily limit reached. You can mark up to {DAILY_COMPLETION_LIMIT} habits as done per day.'
             )
@@ -206,15 +220,29 @@ class DailyHabitStatusView(StandardizedResponseMixin, APIView):
             user=user, completed_date=today
         ).select_related('habit', 'habit__category')
 
-        return success_response({
-            'date': str(today),
-            'is_pro': getattr(user, 'is_pro', False),
-            'completions': HabitCompletionSerializer(completions, many=True).data,
-            'daily_completions': completions.count(),
-            'daily_completion_limit': DAILY_COMPLETION_LIMIT,
-            'remaining': max(0, DAILY_COMPLETION_LIMIT - completions.count()),
-            'can_complete': completions.count() < DAILY_COMPLETION_LIMIT,
-        })
+        is_pro = BYPASS_PRO_LIMITS or getattr(user, 'is_pro', False)
+        comp_count = completions.count()
+        return success_response(
+            {
+                'completions': HabitCompletionSerializer(completions, many=True).data,
+                'date': str(today),
+                'is_pro': is_pro,
+                'daily_completions': comp_count,
+                'daily_completion_limit': DAILY_COMPLETION_LIMIT,
+                'remaining': max(0, DAILY_COMPLETION_LIMIT - comp_count),
+                'can_complete': BYPASS_PRO_LIMITS or comp_count < DAILY_COMPLETION_LIMIT,
+            },
+            metadata={
+                'current_page': 1,
+                'per_page': comp_count or 20,
+                'total_items': comp_count,
+                'total_pages': 1,
+                'has_next_page': False,
+                'has_previous_page': False,
+                'next_page': None,
+                'previous_page': None,
+            }
+        )
 
 
 # ── Admin Views ───────────────────────────────────────────────
@@ -290,103 +318,41 @@ class HabitTemplateListView(generics.ListAPIView):
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             paginator = self.paginator
+            current_page = paginator.page.number
+            total_pages = paginator.page.paginator.num_pages
+            per_page = paginator.page.paginator.per_page
+            total_items = paginator.page.paginator.count
             return Response({
                 "success": True,
                 "message": "Habit templates retrieved successfully",
                 "status": 200,
                 "data": serializer.data,
                 "metadata": {
-                    "count": paginator.page.paginator.count,
-                    "next": paginator.get_next_link(),
-                    "previous": paginator.get_previous_link(),
-                    "page": paginator.page.number,
-                    "page_size": paginator.page.paginator.per_page,
+                    "current_page": current_page,
+                    "per_page": per_page,
+                    "total_items": total_items,
+                    "total_pages": total_pages,
+                    "has_next_page": current_page < total_pages,
+                    "has_previous_page": current_page > 1,
+                    "next_page": current_page + 1 if current_page < total_pages else None,
+                    "previous_page": current_page - 1 if current_page > 1 else None,
                 }
             })
         serializer = self.get_serializer(queryset, many=True)
+        count = len(serializer.data)
         return Response({
             "success": True,
             "message": "Habit templates retrieved successfully",
             "status": 200,
             "data": serializer.data,
             "metadata": {
-                "count": len(serializer.data),
-                "next": None,
-                "previous": None,
-                "page": 1,
-                "page_size": len(serializer.data) or 20,
+                "current_page": 1,
+                "per_page": count or 20,
+                "total_items": count,
+                "total_pages": 1,
+                "has_next_page": False,
+                "has_previous_page": False,
+                "next_page": None,
+                "previous_page": None,
             }
         })
-
-        today = timezone.localdate()
-
-        # Check if already marked done today
-        if HabitCompletion.objects.filter(user=user, habit=habit, completed_date=today).exists():
-            return error_response('This habit is already marked as done for today.')
-
-        # Check daily limit across all categories
-        completions_today = HabitCompletion.objects.filter(
-            user=user, completed_date=today
-        ).count()
-
-        if completions_today >= DAILY_COMPLETION_LIMIT:
-            return error_response(
-                f'Daily limit reached. You can mark up to {DAILY_COMPLETION_LIMIT} habits as done per day.'
-            )
-
-        # Create the completion
-        completion = HabitCompletion.objects.create(
-            user=user,
-            habit=habit,
-            completed_date=today,
-        )
-
-        return success_response(
-            {
-                'completion': HabitCompletionSerializer(completion).data,
-                'daily_completions': completions_today + 1,
-                'daily_completion_limit': DAILY_COMPLETION_LIMIT,
-                'remaining': DAILY_COMPLETION_LIMIT - (completions_today + 1),
-            },
-            message='Habit marked as done!',
-            status_code=status.HTTP_201_CREATED,
-        )
-
-
-class HabitUndoView(StandardizedResponseMixin, APIView):
-    """
-    DELETE /habits/<pk>/undo/
-    Undo today's completion for a habit.
-    """
-    permission_classes = [permissions.AllowAny]
-
-    def delete(self, request, pk):
-        user = _resolve_user(request)
-        today = timezone.localdate()
-        deleted, _ = HabitCompletion.objects.filter(
-            user=user, habit_id=pk, completed_date=today
-        ).delete()
-
-        if not deleted:
-            return error_response(
-                'No completion found for this habit today.',
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
-
-        completions_today = HabitCompletion.objects.filter(
-            user=user, completed_date=today
-        ).count()
-
-        return success_response(
-            {
-                'daily_completions': completions_today,
-                'daily_completion_limit': DAILY_COMPLETION_LIMIT,
-                'remaining': DAILY_COMPLETION_LIMIT - completions_today,
-            },
-            message='Habit completion undone.',
-        )
-
-
-# ... (rest of the code remains the same)
-        kwargs['partial'] = True
-        return self.update(request, *args, **kwargs)

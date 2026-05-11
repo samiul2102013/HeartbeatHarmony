@@ -35,6 +35,7 @@ type QuizItem = {
 };
 
 type QuizScoreRow = {
+  id: number;
   user: string;
   score: number;
 };
@@ -42,7 +43,8 @@ type QuizScoreRow = {
 function toQuizQuestions(topicTitle: string, questions: StudyQuestion[] | undefined): QuizQuestion[] {
   return (questions ?? []).map((question, index) => ({
     id: question.id,
-    topic: topicTitle,
+    topic: question.topic_title ?? topicTitle,
+    topicId: question.topic_id ?? question.topic,
     title: question.text,
     options: [
       { id: question.id * 10 + 1, text: question.option_a, isCorrect: question.correct_option === "A" },
@@ -108,7 +110,7 @@ export default function QuizTestPage() {
   );
 
   const handleCreateQuiz = async (data: QuizPayload) => {
-    const topicId = data.topicId ?? topics[0]?.id;
+    const topicId = data.topicId ?? data.questions[0]?.topicId ?? topics[0]?.id;
     if (!topicId) {
       throw new Error("No study topic available for quiz creation");
     }
@@ -127,7 +129,9 @@ export default function QuizTestPage() {
         options.push({ id: Date.now() + options.length, text: "", isCorrect: false });
       }
       const correctIndex = options.findIndex((option) => option.isCorrect);
+      const questionTopicId = question.topicId ?? topicId;
       await createQuestion({
+        topic: questionTopicId,
         quiz: createdQuiz.id,
         text: question.title,
         option_a: options[0]?.text ?? "",
@@ -165,6 +169,7 @@ export default function QuizTestPage() {
     const attempts = await listAttempts({ quiz: quiz.id });
     setScoreRows(
       attempts.map((attempt) => ({
+        id: attempt.id,
         user: attempt.user_username,
         score: Math.round(attempt.score_percentage),
       }))

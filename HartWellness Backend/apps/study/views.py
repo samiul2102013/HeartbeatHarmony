@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Count
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -16,7 +17,7 @@ from .serializers import (
     StudyMaterialListSerializer, StudyMaterialSerializer, StudyMaterialCatalogSerializer,
     MarkMaterialCompleteSerializer,
     QuizListSerializer, QuizSerializer,
-    QuizSubmitSerializer, QuizAttemptSerializer, QuizAttemptDetailSerializer,
+    QuizSubmitSerializer, TopicQuizSubmitSerializer, QuizAttemptSerializer, QuizAttemptDetailSerializer,
     TopicQuizHistorySerializer,
     AdminStudyTopicSerializer, AdminStudyMaterialSerializer,
     AdminQuizSerializer, AdminQuestionSerializer, AdminQuizAttemptSerializer,
@@ -35,7 +36,8 @@ class StudyTopicListView(StandardizedResponseMixin, generics.ListAPIView):
 
     def get_queryset(self):
         return StudyTopic.objects.filter(is_active=True).annotate(
-            material_count=Count('materials', filter=__import__('django.db.models', fromlist=['Q']).Q(materials__is_active=True))
+            material_count=Count('materials', filter=__import__('django.db.models', fromlist=['Q']).Q(materials__is_active=True)),
+            question_count=Count('questions')
         )
 
 
@@ -47,7 +49,8 @@ class StudyTopicDetailView(StandardizedResponseMixin, generics.RetrieveAPIView):
     def get_queryset(self):
         from django.db.models import Q
         return StudyTopic.objects.filter(is_active=True).annotate(
-            material_count=Count('materials', filter=Q(materials__is_active=True))
+            material_count=Count('materials', filter=Q(materials__is_active=True)),
+            question_count=Count('questions')
         )
 
 
@@ -109,7 +112,7 @@ class QuizListView(StandardizedResponseMixin, generics.ListAPIView):
     def get_queryset(self):
         return Quiz.objects.filter(is_active=True).annotate(
             question_count=Count('questions')
-        )
+        ).order_by('-created_at')[:1]
 
 
 class QuizDetailView(StandardizedResponseMixin, generics.RetrieveAPIView):
@@ -145,14 +148,138 @@ class QuizSubmitView(StandardizedResponseMixin, APIView):
                 status_code=status.HTTP_404_NOT_FOUND
             )
 
-        questions = {q.id: q for q in quiz.questions.all()}
+        quiz_questions = list(quiz.questions.select_related('topic').all())
+        questions = {q.id: q for q in quiz_questions}
+        topic_question_totals = {}
+        topic_lookup = {}
+
+        for question in quiz_questions:
+            if not question.topic_id:
+                continue
+            topic_question_totals[question.topic_id] = topic_question_totals.get(question.topic_id, 0) + 1
+            topic_lookup[question.topic_id] = question.topic
+
+        overall_score = 0
+        answer_results = []
+        topic_scores = {topic_id: 0 for topic_id in topic_question_totals}
+
+        with transaction.atomic():
+            overall_attempt = QuizAttempt.objects.create(
+                user=request.user,
+                quiz=quiz,
+                total_questions=len(quiz_questions),
+            )
+
+            topic_attempts = {
+                topic_id: QuizAttempt.objects.create(
+                    user=request.user,
+                    topic=topic_lookup[topic_id],
+                    total_questions=topic_question_totals[topic_id],
+                )
+                for topic_id in topic_question_totals
+            }
+
+            for answer in answers_data:
+                question = questions.get(answer['question_id'])
+                if not question:
+                    continue
+
+                is_correct = answer['selected_option'] == question.correct_option
+                if is_correct:
+                    overall_score += 1
+
+                QuizAnswer.objects.create(
+                    attempt=overall_attempt,
+                    question=question,
+                    selected_option=answer['selected_option'],
+                    is_correct=is_correct,
+                )
+
+                topic_attempt = topic_attempts.get(question.topic_id)
+                if topic_attempt:
+                    QuizAnswer.objects.create(
+                        attempt=topic_attempt,
+                        question=question,
+                        selected_option=answer['selected_option'],
+                        is_correct=is_correct,
+                    )
+                    if is_correct:
+                        topic_scores[question.topic_id] += 1
+
+                answer_results.append({
+                    'question_id': question.id,
+                    'question_text': question.text,
+                    'topic_id': question.topic_id,
+                    'topic_title': question.topic.title if question.topic else None,
+                    'selected_option': answer['selected_option'],
+                    'correct_option': question.correct_option,
+                    'is_correct': is_correct,
+                })
+
+            overall_attempt.score = overall_score
+            overall_attempt.save(update_fields=['score'])
+
+            topic_results = []
+            for topic_id, topic_attempt in topic_attempts.items():
+                topic_attempt.score = topic_scores.get(topic_id, 0)
+                topic_attempt.save(update_fields=['score'])
+                topic_results.append({
+                    'topic_id': topic_id,
+                    'topic_title': topic_lookup[topic_id].title,
+                    'attempt_id': topic_attempt.id,
+                    'score': topic_attempt.score,
+                    'total_questions': topic_attempt.total_questions,
+                    'score_percentage': topic_attempt.score_percentage,
+                })
+
+        return success_response({
+            'attempt_id': overall_attempt.id,
+            'quiz_title': quiz.title,
+            'score': overall_score,
+            'total_questions': overall_attempt.total_questions,
+            'score_percentage': overall_attempt.score_percentage,
+            'topic_results': topic_results,
+            'answers': answer_results,
+        })
+
+
+class TopicQuizSubmitView(StandardizedResponseMixin, APIView):
+    """
+    User submits all answers for a topic at once.
+    Gets questions directly from the topic (not via quiz).
+    Returns score + per-answer results.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = TopicQuizSubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        topic_id = serializer.validated_data['topic_id']
+        answers_data = serializer.validated_data['answers']
+
+        try:
+            topic = StudyTopic.objects.get(id=topic_id, is_active=True)
+        except StudyTopic.DoesNotExist:
+            return error_response(
+                'Topic not found.',
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        questions = {q.id: q for q in topic.questions.all()}
+        if not questions:
+            return error_response(
+                'No questions available for this topic.',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
         score = 0
         answer_results = []
 
-        # Create attempt first
+        # Create attempt tied to topic
         attempt = QuizAttempt.objects.create(
             user=request.user,
-            quiz=quiz,
+            topic=topic,
             total_questions=len(questions),
         )
 
@@ -185,7 +312,7 @@ class QuizSubmitView(StandardizedResponseMixin, APIView):
 
         return success_response({
             'attempt_id': attempt.id,
-            'quiz_title': quiz.title,
+            'topic_title': topic.title,
             'score': score,
             'total_questions': attempt.total_questions,
             'score_percentage': attempt.score_percentage,
@@ -202,11 +329,11 @@ class MyQuizAttemptsView(StandardizedResponseMixin, generics.ListAPIView):
     def get_queryset(self):
         qs = QuizAttempt.objects.filter(
             user=self.request.user
-        ).select_related('quiz', 'quiz__topic')
+        ).select_related('topic')
 
         topic_id = self.request.query_params.get('topic')
         if topic_id:
-            qs = qs.filter(quiz__topic_id=topic_id)
+            qs = qs.filter(topic_id=topic_id)
 
         return qs
 
@@ -234,7 +361,7 @@ class MyQuizAttemptsByTopicView(StandardizedResponseMixin, generics.ListAPIView)
         # Only return topics where this user has quiz attempts
         attempted_topic_ids = QuizAttempt.objects.filter(
             user=self.request.user
-        ).values_list('quiz__topic_id', flat=True).distinct()
+        ).values_list('topic_id', flat=True).distinct()
 
         return StudyTopic.objects.filter(
             id__in=attempted_topic_ids

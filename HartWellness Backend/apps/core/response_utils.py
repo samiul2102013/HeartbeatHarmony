@@ -19,10 +19,10 @@ def success_response(data=None, message=None, status_code=status.HTTP_200_OK, me
     """
     response_data = {
         'success': True,
+        'message': message if message is not None else 'Success',
+        'status': status_code,
         'data': data if data is not None else {}
     }
-    if message:
-        response_data['message'] = message
     if metadata is not None:
         response_data['metadata'] = metadata
     return Response(response_data, status=status_code)
@@ -40,6 +40,7 @@ def error_response(message, data=None, status_code=status.HTTP_400_BAD_REQUEST):
     response_data = {
         'success': False,
         'message': message,
+        'status': status_code,
     }
     if data:
         response_data['data'] = data
@@ -77,11 +78,17 @@ class StandardizedResponseMixin:
                 except (ValueError, TypeError):
                     current_page = 1
             total_pages = math.ceil(count / page_size) if page_size and count > 0 else 1
+            next_page = current_page + 1 if current_page < total_pages else None
+            previous_page = current_page - 1 if current_page > 1 else None
             return {
-                'total_count': count,
-                'total_pages': total_pages,
                 'current_page': current_page,
                 'per_page': page_size,
+                'total_items': count,
+                'total_pages': total_pages,
+                'has_next_page': current_page < total_pages,
+                'has_previous_page': current_page > 1,
+                'next_page': next_page,
+                'previous_page': previous_page,
             }
         
         # Only wrap successful responses (2xx)
@@ -91,6 +98,9 @@ class StandardizedResponseMixin:
                 if 'success' not in response.data:  # Not already wrapped
                     if _is_paginated_payload(response.data):
                         response.data = {
+                            'success': True,
+                            'message': 'Success',
+                            'status': response.status_code,
                             'data': response.data.get('results', []),
                             'metadata': _build_pagination_metadata(response.data, request),
                         }
@@ -98,17 +108,26 @@ class StandardizedResponseMixin:
 
                     response.data = {
                         'success': True,
+                        'message': 'Success',
+                        'status': response.status_code,
                         'data': response.data
                     }
             elif isinstance(response.data, list):
                 arr = response.data
                 response.data = {
+                    'success': True,
+                    'message': 'Success',
+                    'status': response.status_code,
                     'data': arr,
                     'metadata': {
-                        'total_count': len(arr),
-                        'total_pages': 1,
                         'current_page': 1,
                         'per_page': len(arr) or 20,
+                        'total_items': len(arr),
+                        'total_pages': 1,
+                        'has_next_page': False,
+                        'has_previous_page': False,
+                        'next_page': None,
+                        'previous_page': None,
                     }
                 }
         else:
@@ -121,6 +140,7 @@ class StandardizedResponseMixin:
                         response.data = {
                             'success': False,
                             'message': str(error_msg),
+                            'status': response.status_code,
                             'data': response.data if response.data else {}
                         }
                     else:
@@ -159,6 +179,7 @@ class StandardizedResponseMixin:
                                 response.data = {
                                     'success': False,
                                     'message': aggregated_message,
+                                    'status': response.status_code,
                                     'data': data_copy
                                 }
         

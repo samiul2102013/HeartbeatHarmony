@@ -19,16 +19,30 @@ def get_user_from_token(token_key):
 
 class JWTAuthMiddleware(BaseMiddleware):
     """
-    Reads JWT token from query string:
+    Reads JWT token from query string or Authorization header:
     ws://localhost:8000/ws/community/?token=<access_token>
+    or
+    Header: Authorization: Bearer <access_token>
     """
     async def __call__(self, scope, receive, send):
+        token = None
+
+        # 1. Try query string
         query_string = scope.get('query_string', b'').decode()
         params = parse_qs(query_string)
         token_list = params.get('token', [])
-
         if token_list:
-            scope['user'] = await get_user_from_token(token_list[0])
+            token = token_list[0]
+
+        # 2. Fallback to Authorization header
+        if not token:
+            headers = dict(scope.get('headers', []))
+            auth_header = headers.get(b'authorization', b'').decode()
+            if auth_header.startswith('Bearer '):
+                token = auth_header.split(' ', 1)[1]
+
+        if token:
+            scope['user'] = await get_user_from_token(token)
         else:
             scope['user'] = AnonymousUser()
 

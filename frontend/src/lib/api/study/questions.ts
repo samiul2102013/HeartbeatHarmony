@@ -1,6 +1,7 @@
 import { requestJson } from "../core/client";
  
 export type QuestionPayload = {
+  topic: number;
   quiz: number;
   text: string;
   option_a: string;

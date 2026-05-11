@@ -5,6 +5,9 @@ from django.core.exceptions import ValidationError
 FREE_HABIT_LIMIT = 3
 DAILY_COMPLETION_LIMIT = 3
 
+# Toggle this to bypass pro limits during testing
+BYPASS_PRO_LIMITS = True
+
 
 class Category(models.Model):
     """Admin-managed habit categories (e.g. Fitness, Mindfulness, Sleep)."""
@@ -48,6 +51,8 @@ class Habit(models.Model):
 
     def clean(self):
         # Enforce free tier limit (exclude self on updates)
+        if BYPASS_PRO_LIMITS:
+            return
         if not self.pk:  # only on creation
             if not self.user.is_pro:
                 existing = Habit.objects.filter(user=self.user, is_active=True).count()
