@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import timedelta
 import os
+import dj_database_url
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,6 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'change-me')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://*.railway.app,https://*.vercel.app').split(',')
 
 DJANGO_APPS = [
     'django.contrib.admin',
@@ -26,6 +28,7 @@ THIRD_PARTY_APPS = [
     'django_filters',
     'drf_spectacular',
     'channels',
+    'django_apscheduler',
 ]
 
 LOCAL_APPS = [
@@ -36,13 +39,14 @@ LOCAL_APPS = [
     'apps.community',
     'apps.pricing',
     'apps.core',
+    'apps.notifications',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Added WhiteNoise middleware
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -56,10 +60,11 @@ ROOT_URLCONF = 'config.urls'
 AUTH_USER_MODEL = 'accounts.User'
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 REST_FRAMEWORK = {
@@ -91,10 +96,12 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', '').split(',')
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Development / testing bypass for email verification (use only in dev/staging)
+ALLOW_DEV_BYPASS = os.getenv('ALLOW_DEV_BYPASS', 'False') == 'True'
+DEV_BYPASS_VALUE = os.getenv('DEV_BYPASS_VALUE', '123456')
+DEV_BYPASS_SECRET = os.getenv('DEV_BYPASS_SECRET', '')
+DEV_EMAIL_OTP = os.getenv('DEV_EMAIL_OTP', DEV_BYPASS_VALUE)
+USE_TZ = True
 
 TEMPLATES = [{
     'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -121,26 +128,28 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@heartbeatharmony.c
 # Channels
 ASGI_APPLICATION = 'config.asgi.application'
 
-# In-memory for dev — swap to Redis in production
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+REDIS_URL = os.getenv('REDIS_URL')
+
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+            },
+        }
     }
-}
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
+    }
 
-# Production Redis swap:
-# CHANNEL_LAYERS = {
-#     'default': {
-#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
-#         'CONFIG': {'hosts': [('127.0.0.1', 6379)]},
-#     }
-# }
+# Static files
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Development / testing bypass for email verification (use only in dev/staging)
-# Set ALLOW_DEV_BYPASS=True and DEV_BYPASS_VALUE=default (or other) in .env to enable.
-# Optionally set DEV_BYPASS_SECRET to require a header 'X-DEV-BYPASS' with the secret.
-ALLOW_DEV_BYPASS = os.getenv('ALLOW_DEV_BYPASS', 'False') == 'True'
-DEV_BYPASS_VALUE = os.getenv('DEV_BYPASS_VALUE', '123456')
-DEV_BYPASS_SECRET = os.getenv('DEV_BYPASS_SECRET', '')
-DEV_EMAIL_OTP = os.getenv('DEV_EMAIL_OTP', DEV_BYPASS_VALUE)
-USE_TZ = True
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

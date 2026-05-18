@@ -95,6 +95,25 @@ class ProfileView(StandardizedResponseMixin, generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
+class AvatarUploadView(StandardizedResponseMixin, APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        if 'avatar' not in request.FILES:
+            return error_response('No avatar file provided.', status_code=status.HTTP_400_BAD_REQUEST)
+        
+        user = request.user
+        user.avatar = request.FILES['avatar']
+        user.save(update_fields=['avatar'])
+        
+        avatar_url = request.build_absolute_uri(user.avatar.url)
+        return success_response({
+            'detail': 'Avatar uploaded successfully.',
+            'avatar_url': avatar_url
+        })
+
+
 class ChangePasswordView(StandardizedResponseMixin, APIView):
     def post(self, request):
         serializer = ChangePasswordSerializer(

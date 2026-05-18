@@ -7,6 +7,7 @@ from .models import User
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True)
     email = serializers.EmailField(
@@ -27,6 +28,18 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        email = validated_data.get('email')
+        
+        # If frontend didn't pass a username, generate one from email
+        if not validated_data.get('username'):
+            base_username = email.split('@')[0]
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+            validated_data['username'] = username
+
         return User.objects.create_user(**validated_data)
 
 

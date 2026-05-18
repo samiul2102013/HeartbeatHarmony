@@ -18,6 +18,7 @@ urlpatterns = [
 
     # User
     re_path(r'^users/profile/?$', views.ProfileView.as_view()),
+    re_path(r'^users/profile/avatar/?$', views.AvatarUploadView.as_view()),
     re_path(r'^users/change-password/?$', views.ChangePasswordView.as_view()),
 
     # Admin

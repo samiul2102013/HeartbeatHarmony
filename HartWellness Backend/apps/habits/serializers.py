@@ -115,6 +115,19 @@ class HabitSummarySerializer(serializers.ModelSerializer):
         ).exists()
 
 
+class HabitReminderSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_icon = serializers.CharField(source='category.icon', read_only=True)
+
+    class Meta:
+        model = Habit
+        fields = [
+            'id', 'activity_name', 'description', 'duration',
+            'category_name', 'category_icon', 'reminder_time',
+            'is_active', 'created_at',
+        ]
+
+
 class HabitCompletionSerializer(serializers.ModelSerializer):
     habit_name = serializers.CharField(source='habit.activity_name', read_only=True)
     category_name = serializers.CharField(source='habit.category.name', read_only=True)

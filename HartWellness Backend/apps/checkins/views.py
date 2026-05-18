@@ -111,6 +111,58 @@ class DashboardStatsView(StandardizedResponseMixin, APIView):
         })
 
 
+class MyProgressView(StandardizedResponseMixin, APIView):
+    """User progress over the last 7 days grouped by weekday."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.localdate()
+        start_date = today - datetime.timedelta(days=6)
+
+        checkins = (
+            CheckIn.objects
+            .filter(user=request.user, created_at__date__range=(start_date, today))
+            .select_related('mood')
+            .order_by('created_at')
+        )
+
+        grouped_checkins = {
+            start_date + datetime.timedelta(days=index): []
+            for index in range(7)
+        }
+        for checkin in checkins:
+            grouped_checkins.setdefault(checkin.created_at.date(), []).append(checkin)
+
+        days = []
+        for index in range(7):
+            current_date = start_date + datetime.timedelta(days=index)
+            day_checkins = grouped_checkins.get(current_date, [])
+            average_score = None
+            if day_checkins:
+                average_score = round(
+                    sum(float(item.heart_balance_score) for item in day_checkins) / len(day_checkins),
+                    2,
+                )
+
+            days.append({
+                'date': current_date,
+                'day_name': current_date.strftime('%A'),
+                'total_checkins': len(day_checkins),
+                'average_heart_balance': average_score,
+                'checkins': CheckInSummarySerializer(day_checkins, many=True).data,
+            })
+
+        summary = checkins.aggregate(avg_heart_balance=Avg('heart_balance_score'))
+
+        return success_response({
+            'range_start': start_date,
+            'range_end': today,
+            'total_checkins': checkins.count(),
+            'average_heart_balance': summary.get('avg_heart_balance'),
+            'days': days,
+        })
+
+
 # ── Admin Views ───────────────────────────────────────────────
 
 class AdminMoodListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView):

@@ -8,6 +8,7 @@ urlpatterns = [
     re_path(r'^checkins/history/?$', views.CheckInHistoryView.as_view()),
     re_path(r'^checkins/(?P<pk>\d+)/?$', views.CheckInDetailView.as_view()),
     re_path(r'^checkins/dashboard/?$', views.DashboardStatsView.as_view()),
+    re_path(r'^checkins/my-progress/?$', views.MyProgressView.as_view()),
 
     # Admin
     re_path(r'^admin/moods/?$', views.AdminMoodListCreateView.as_view()),

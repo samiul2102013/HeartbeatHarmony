@@ -4,12 +4,25 @@ from django.conf import settings
 
 class CommunityMessage(models.Model):
     """Messages in the single HeartbeatHarmony community group."""
+    class MessageType(models.TextChoices):
+        TEXT = 'text', 'Text'
+        IMAGE = 'image', 'Image'
+        AUDIO = 'audio', 'Audio'
+        VIDEO = 'video', 'Video'
+        FILE = 'file', 'File'
+
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='community_messages'
     )
-    content = models.TextField()
+    content = models.TextField(blank=True, default='')
+    file = models.FileField(upload_to='community/messages/', null=True, blank=True)
+    message_type = models.CharField(
+        max_length=10,
+        choices=MessageType.choices,
+        default=MessageType.TEXT
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -5,6 +5,8 @@ urlpatterns = [
     # User / Mobile
     re_path(r'^categories/?$', views.CategoryListView.as_view()),
     re_path(r'^habits/?$', views.HabitListCreateView.as_view()),
+    re_path(r'^habits/reminders/today/?$', views.HabitReminderTodayView.as_view()),
+    re_path(r'^habits/reminders/?$', views.HabitReminderListView.as_view()),
     re_path(r'^habits/daily-status/?$', views.DailyHabitStatusView.as_view()),
     re_path(r'^habits/(?P<pk>\d+)/?$', views.HabitDetailView.as_view()),
     re_path(r'^habits/(?P<pk>\d+)/done/?$', views.HabitMarkDoneView.as_view()),

@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from .models import Category, Habit, HabitCompletion, HabitTemplate, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT, BYPASS_PRO_LIMITS
 from .serializers import (
     CategorySerializer, HabitSerializer, HabitSummarySerializer,
-    HabitCompletionSerializer,
+    HabitCompletionSerializer, HabitReminderSerializer,
     AdminCategorySerializer, AdminHabitSerializer,
     HabitTemplateSerializer, AdminHabitTemplateSerializer,
 )
@@ -47,6 +47,8 @@ class CategoryListView(generics.ListAPIView):
 
 class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView):
     permission_classes = [permissions.AllowAny]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['category']
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -59,13 +61,20 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
         return ctx
 
     def get_queryset(self):
-        return Habit.objects.filter(
+        queryset = Habit.objects.filter(
             user=_resolve_user(self.request), is_active=True
         ).select_related('category')
+        
+        # Explicitly filter by category if provided
+        category_id = self.request.query_params.get('category')
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+            
+        return queryset
 
     def list(self, request, *args, **kwargs):
         user = _resolve_user(request)
-        queryset = self.get_queryset()
+        queryset = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(queryset, many=True)
 
         today = timezone.localdate()
@@ -243,6 +252,73 @@ class DailyHabitStatusView(StandardizedResponseMixin, APIView):
                 'previous_page': None,
             }
         )
+
+
+class HabitReminderListView(StandardizedResponseMixin, generics.ListAPIView):
+    """
+    GET /habits/reminders/
+    Returns all active habits for the user that have a reminder_time set, ordered by time.
+    """
+    permission_classes = [permissions.AllowAny]
+    serializer_class = HabitSerializer
+    pagination_class = None
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx['resolved_user'] = _resolve_user(self.request)
+        return ctx
+
+    def get_queryset(self):
+        user = _resolve_user(self.request)
+        return Habit.objects.filter(
+            user=user, 
+            is_active=True, 
+            reminder_time__isnull=False
+        ).order_by('reminder_time')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        count = queryset.count()
+        
+        return success_response(
+            {
+                'reminders': serializer.data,
+                'count': count
+            },
+            metadata={
+                'current_page': 1,
+                'per_page': count or 20,
+                'total_items': count,
+                'total_pages': 1,
+                'has_next_page': False,
+                'has_previous_page': False,
+                'next_page': None,
+                'previous_page': None,
+            }
+        )
+
+
+class HabitReminderTodayView(StandardizedResponseMixin, generics.ListAPIView):
+    """
+    GET /habits/reminders/today/
+    Returns all active habits with reminder_time set for the authenticated user.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = HabitReminderSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return Habit.objects.filter(
+            user=self.request.user,
+            is_active=True,
+            reminder_time__isnull=False
+        ).select_related('category').order_by('reminder_time')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return success_response({'reminders': serializer.data, 'count': len(serializer.data)})
 
 
 # ── Admin Views ───────────────────────────────────────────────

@@ -32,13 +32,25 @@ class CheckInSummarySerializer(serializers.ModelSerializer):
     """Lightweight serializer for list views / history."""
     mood_name = serializers.CharField(source='mood.name', read_only=True)
     mood_emoji = serializers.CharField(source='mood.emoji', read_only=True)
+    details = serializers.SerializerMethodField()
 
     class Meta:
         model = CheckIn
         fields = [
             'id', 'mood_name', 'mood_emoji',
             'heart_balance_score', 'created_at',
+            'details',
         ]
+
+    def get_details(self, obj):
+        return {
+            'mental_clarity': obj.mental_clarity,
+            'emotional_balance': obj.emotional_balance,
+            'spiritual_wellness': obj.spiritual_wellness,
+            'physical_energy': obj.physical_energy,
+            'gratitude': obj.gratitude,
+            'notes': obj.notes,
+        }
 
 
 # ── Admin serializers ─────────────────────────────────────────
