@@ -46,7 +46,7 @@ class AppConfigView(APIView):
 		config_data = {
 			"app_update_config": {
 				"current_versions": {
-					"android": "1.0.1",
+					"android": "1.0.2",
 					"ios": "1.0.0"
 				},
 				"update_urls": {
