@@ -92,8 +92,9 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
 }
 
-CORS_ALLOW_ALL_ORIGINS = DEBUG
-CORS_ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv('CORS_ORIGINS', '').split(',') if origin.strip()]
+cors_origins_env = os.getenv('CORS_ORIGINS', '')
+CORS_ALLOW_ALL_ORIGINS = DEBUG or '*' in [o.strip() for o in cors_origins_env.split(',') if o.strip()]
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip() and origin.strip() != '*']
 
 # Development / testing bypass for email verification (use only in dev/staging)
 ALLOW_DEV_BYPASS = os.getenv('ALLOW_DEV_BYPASS', 'False') == 'True'
