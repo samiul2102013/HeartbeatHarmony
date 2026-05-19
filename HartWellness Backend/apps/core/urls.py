@@ -14,4 +14,6 @@ urlpatterns = [
     re_path(r'^admin/faqs/(?P<pk>\d+)/?$', views.AdminFAQDetailView.as_view()),
     
     re_path(r'^admin/support-contact/?$', views.AdminSupportContactView.as_view()),
+    
+    re_path(r'^config/?$', views.AppConfigView.as_view()),
 ]

@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, permissions
 from rest_framework.views import APIView
+from rest_framework.response import Response
 
 from apps.core.permissions import IsAdminRole
 from apps.core.response_utils import StandardizedResponseMixin, success_response
@@ -36,6 +37,31 @@ class HelpSupportPageView(StandardizedResponseMixin, APIView):
 			'contact': contact_data,
 			'faqs': faqs_data,
 		})
+
+
+class AppConfigView(APIView):
+	permission_classes = [permissions.AllowAny]
+
+	def get(self, request):
+		config_data = {
+			"app_update_config": {
+				"current_versions": {
+					"android": "1.0.1",
+					"ios": "1.0.0"
+				},
+				"update_urls": {
+					"android": "https://play.google.com/store/apps/details?id=YOUR_PACKAGE_NAME",
+					"ios": "https://apps.apple.com/app/idYOUR_APP_ID"
+				},
+				"force_update": False,
+				"update_policy": {
+					"check_on_launch": True,
+					"show_update_dialog": True,
+					"skip_optional_update": True
+				}
+			}
+		}
+		return Response(config_data)
 
 
 # ── Admin Views ───────────────────────────────────────────────
