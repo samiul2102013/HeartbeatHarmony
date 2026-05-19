@@ -9,8 +9,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'change-me')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://*.railway.app,https://*.vercel.app').split(',')
+ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '*').split(',') if host.strip()]
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.getenv('CSRF_TRUSTED_ORIGINS', 'https://*.railway.app,https://*.vercel.app').split(',') if origin.strip()]
 
 DJANGO_APPS = [
     'django.contrib.admin',
@@ -28,7 +28,6 @@ THIRD_PARTY_APPS = [
     'django_filters',
     'drf_spectacular',
     'channels',
-    'django_apscheduler',
 ]
 
 LOCAL_APPS = [
@@ -94,7 +93,7 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', '').split(',')
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv('CORS_ORIGINS', '').split(',') if origin.strip()]
 
 # Development / testing bypass for email verification (use only in dev/staging)
 ALLOW_DEV_BYPASS = os.getenv('ALLOW_DEV_BYPASS', 'False') == 'True'
