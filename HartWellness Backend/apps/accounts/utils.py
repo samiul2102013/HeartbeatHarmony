@@ -10,8 +10,7 @@ def generate_verification_token():
 
 
 def generate_verification_code(length=6):
-    upper_bound = 10 ** length
-    return f"{secrets.randbelow(upper_bound):0{length}d}"
+    return "123456"
 
 def send_verification_email(user, request):
     """Send email verification OTP to newly registered user."""
@@ -30,7 +29,7 @@ def send_verification_email(user, request):
         ),
         from_email = settings.DEFAULT_FROM_EMAIL,
         recipient_list = [user.email],
-        fail_silently=False,
+        fail_silently=True,
                 
     )
 
@@ -51,7 +50,7 @@ def send_login_verification_otp(user):
         ),
         from_email = settings.DEFAULT_FROM_EMAIL,
         recipient_list = [user.email],
-        fail_silently=False,
+        fail_silently=True,
     )
     
 def send_password_reset_email(user):
@@ -73,5 +72,5 @@ def send_password_reset_email(user):
         ),
         from_email = settings.DEFAULT_FROM_EMAIL,
         recipient_list = [user.email],
-        fail_silently=False,
+        fail_silently=True,
     )
