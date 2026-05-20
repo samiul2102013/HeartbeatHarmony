@@ -258,6 +258,42 @@ class ForgotPasswordView(StandardizedResponseMixin, APIView):
         return success_response(response_data)
 
 
+class VerifyResetOTPView(StandardizedResponseMixin, APIView):
+    """
+    Step 2: Verify the OTP sent to the user's email before allowing password change.
+    """
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        email = request.data.get('email')
+        otp = request.data.get('otp')
+        
+        if not email or not otp:
+            return error_response('Email and OTP are required.', status_code=status.HTTP_400_BAD_REQUEST)
+
+        # Dev bypass logic
+        is_dev_bypass = False
+        if getattr(settings, 'ALLOW_DEV_BYPASS', False):
+            dev_otp = getattr(settings, 'DEV_EMAIL_OTP', '123456')
+            if otp == dev_otp:
+                is_dev_bypass = True
+
+        try:
+            if is_dev_bypass:
+                user = User.objects.get(email=email)
+            else:
+                user = User.objects.get(email=email, password_reset_otp=otp)
+                if user.password_reset_otp_created:
+                    expiry = user.password_reset_otp_created + timedelta(hours=PASSWORD_RESET_EXPIRY_HOURS)
+                    if timezone.now() > expiry:
+                        return error_response('OTP has expired.', status_code=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return error_response('Invalid email or OTP.', status_code=status.HTTP_400_BAD_REQUEST)
+
+        return success_response({'detail': 'OTP verified successfully.', 'email': email, 'otp': otp})
+
+
 class ResetPasswordView(StandardizedResponseMixin, APIView):
     """
     Takes token + new_password → validates token expiry → resets password.

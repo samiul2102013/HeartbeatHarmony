@@ -14,6 +14,7 @@ urlpatterns = [
 
     # Forgot / Reset password
     re_path(r'^auth/forgot-password/?$', views.ForgotPasswordView.as_view()),
+    re_path(r'^auth/verify-reset-otp/?$', views.VerifyResetOTPView.as_view()),
     re_path(r'^auth/reset-password/?$', views.ResetPasswordView.as_view()),
 
     # User
