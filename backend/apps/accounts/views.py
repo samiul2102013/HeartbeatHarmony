@@ -236,7 +236,7 @@ class ForgotPasswordView(StandardizedResponseMixin, APIView):
         serializer = ForgotPasswordSerializer(data=request.data)
         # Always return 200 even if email not found
         if not serializer.is_valid():
-            return success_response({'detail': 'If this email exists, a reset OTP will be sent.'})
+            return success_response(message='If this email exists, a reset OTP will be sent.')
 
         email = serializer.validated_data['email']
         reset_token = None
@@ -252,10 +252,10 @@ class ForgotPasswordView(StandardizedResponseMixin, APIView):
         except User.DoesNotExist:
             pass  # Silent — don't leak user existence
 
-        response_data = {'detail': 'If this email exists, a reset token will be sent.'}
+        response_data = {}
         if reset_token:
             response_data['token'] = reset_token
-        return success_response(response_data)
+        return success_response(data=response_data, message='If this email exists, a reset OTP will be sent.')
 
 
 class VerifyResetOTPView(StandardizedResponseMixin, APIView):
@@ -318,6 +318,14 @@ class ResetPasswordView(StandardizedResponseMixin, APIView):
                     'Invalid or expired reset token.',
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
+            # Check token expiry
+            if user.password_reset_token_created:
+                expiry = user.password_reset_token_created + timedelta(hours=PASSWORD_RESET_EXPIRY_HOURS)
+                if timezone.now() > expiry:
+                    return error_response(
+                        'Reset token has expired. Please request a new one.',
+                        status_code=status.HTTP_400_BAD_REQUEST
+                    )
         else:
             try:
                 user = User.objects.get(email=email, password_reset_otp=otp)
@@ -326,14 +334,14 @@ class ResetPasswordView(StandardizedResponseMixin, APIView):
                     'Invalid or expired reset OTP.',
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
-
-        # Check token expiry
-        expiry = user.password_reset_token_created + timedelta(hours=PASSWORD_RESET_EXPIRY_HOURS)
-        if timezone.now() > expiry:
-            return error_response(
-                'Reset token has expired. Please request a new one.',
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
+            # Check OTP expiry
+            if user.password_reset_otp_created:
+                expiry = user.password_reset_otp_created + timedelta(hours=PASSWORD_RESET_EXPIRY_HOURS)
+                if timezone.now() > expiry:
+                    return error_response(
+                        'Reset OTP has expired. Please request a new one.',
+                        status_code=status.HTTP_400_BAD_REQUEST
+                    )
 
         # Set password
         user.set_password(new_password)

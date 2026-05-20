@@ -9,7 +9,6 @@ from .models import User
 class RegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True)
     email = serializers.EmailField(
         validators=[UniqueValidator(queryset=User.objects.all())]
     )
@@ -17,15 +16,10 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                  'phone_number', 'password', 'password2']
+                  'phone_number', 'password']
 
     def validate_email(self, value):
         return value.lower().strip()
-            
-    def validate(self, attrs):
-        if attrs['password'] != attrs.pop('password2'):
-            raise serializers.ValidationError({'password': 'Passwords do not match.'})
-        return attrs
 
     def create(self, validated_data):
         email = validated_data.get('email')

@@ -14,7 +14,6 @@ This guide provides the API endpoints and request/response structures for integr
 {
   "email": "user@example.com",
   "password": "yourpassword",
-  "password2": "yourpassword",
   "first_name": "John",
   "last_name": "Doe"
 }

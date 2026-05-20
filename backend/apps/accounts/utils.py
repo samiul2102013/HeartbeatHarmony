@@ -1,3 +1,4 @@
+import random
 from django.utils import timezone
 import secrets
 
@@ -10,7 +11,7 @@ def generate_verification_token():
 
 
 def generate_verification_code(length=6):
-    return "123456"
+    return ''.join(random.choices('0123456789', k=length))
 
 def send_verification_email(user, request):
     """Send email verification OTP to newly registered user."""
@@ -34,12 +35,26 @@ def send_verification_email(user, request):
     )
 
 def send_login_verification_otp(user):
-    """Send OTP to unverified user attempting to login."""
-    otp = generate_verification_code()
-    user.email_verification_code = otp
-    user.email_verification_code_created = timezone.now()
-    user.save(update_fields=['email_verification_code', 'email_verification_code_created'])
-    
+    """Send OTP to unverified user attempting to login.
+    Reuses the existing OTP if it was generated within the last 5 minutes
+    to avoid flooding the user with emails."""
+    OTP_RESEND_WINDOW_MINUTES = 5
+
+    existing_code = user.email_verification_code
+    existing_created = user.email_verification_code_created
+
+    if (
+        existing_code
+        and existing_created
+        and (timezone.now() - existing_created).total_seconds() < OTP_RESEND_WINDOW_MINUTES * 60
+    ):
+        otp = existing_code
+    else:
+        otp = generate_verification_code()
+        user.email_verification_code = otp
+        user.email_verification_code_created = timezone.now()
+        user.save(update_fields=['email_verification_code', 'email_verification_code_created'])
+
     send_mail(
         subject="HeartBeat Harmony Login Verification",
         message = (

@@ -14,8 +14,7 @@ body:
       "first_name": "{{firstName}}",
       "last_name": "{{lastName}}",
       "phone_number": "{{phoneNumber}}",
-      "password": "{{password}}",
-      "password2": "{{password}}"
+      "password": "{{password}}"
     }
 scripts:
   - type: afterResponse
