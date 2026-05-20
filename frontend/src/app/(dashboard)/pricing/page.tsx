@@ -240,7 +240,7 @@ export default function Pricing() {
               is_included: data.is_included,
               order: data.order,
             });
-            const nextFeature = created?.data ?? created;
+            const nextFeature = created;
             applyFeatureToPlans(featurePlan.id, {
               id: nextFeature?.id ?? Date.now(),
               plan: nextFeature?.plan ?? featurePlan.id,

@@ -33,7 +33,7 @@ export type { CategoryPayload, CategoryListResponse, AdminCategory } from "./api
 export type { HabitTemplate, HabitTemplatePayload } from "./api/habits/habits";
 export type { MoodPayload, AdminMood, MoodListResponse } from "./api/checkins/moods";
 export type { FeaturePayload } from "./api/pricing/features";
-export type { PlanPayload, PricingPlan } from "./api/pricing/plans";
+export type { PlanPayload, PricingPlan, PlanFeature } from "./api/pricing/plans";
 export type { SubscriptionQuery } from "./api/pricing/subscriptions";
 export type { StudyTopic } from "./api/study/topics";
 export type { AdminMaterial, MaterialQuery } from "./api/study/materials";
