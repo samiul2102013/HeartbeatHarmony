@@ -1,0 +1,33 @@
+services:
+  hartbeat-redis:
+    container_name: hartbeat-redis
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - hartbeat-network
+
+  hartbeat-backend:
+    container_name: hartbeat-backend
+    build:
+      context: ./HartWellness Backend
+      dockerfile: Dockerfile
+    ports:
+      - "8005:8005"
+    env_file:
+      - ./HartWellness Backend/.env
+    environment:
+      - REDIS_URL=redis://hartbeat-redis:6379/0
+    depends_on:
+      - hartbeat-redis
+    restart: unless-stopped
+    networks:
+      - hartbeat-network
+
+volumes:
+  redis_data:
+
+networks:
+  hartbeat-network:
+    driver: bridge
