@@ -11,12 +11,12 @@ services:
   hartbeat-backend:
     container_name: hartbeat-backend
     build:
-      context: ./HartWellness Backend
+      context: ./backend
       dockerfile: Dockerfile
     ports:
       - "8005:8005"
     env_file:
-      - ./HartWellness Backend/.env
+      - ./backend/.env
     environment:
       - REDIS_URL=redis://hartbeat-redis:6379/0
     depends_on:
