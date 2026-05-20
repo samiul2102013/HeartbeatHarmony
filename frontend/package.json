@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "next dev",
         "build": "next build",
-        "start": "next start -p 3004",
+        "start": "npx serve@latest out -l 3004",
         "lint": "eslint"
     },
     "dependencies": {
@@ -36,6 +36,7 @@
         "eslint": "^9",
         "eslint-config-next": "16.2.1",
         "tailwindcss": "^4",
+        "serve": "^14.2.4",
         "typescript": "^5.6.2"
     },
     "pnpm": {
