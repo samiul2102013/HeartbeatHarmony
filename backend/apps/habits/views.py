@@ -77,16 +77,46 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(queryset, many=True)
 
+        # Get admin-created templates and format them like user habits
+        template_qs = HabitTemplate.objects.filter(is_active=True).select_related('category')
+        category_id = request.query_params.get('category')
+        if category_id:
+            template_qs = template_qs.filter(category_id=category_id)
+
+        # Collect activity names the user already has to avoid duplicates
+        user_habit_names = set(
+            queryset.values_list('activity_name', flat=True)
+        )
+
+        template_habits = []
+        for t in template_qs:
+            if t.activity_name not in user_habit_names:
+                template_habits.append({
+                    'id': f'template_{t.id}',
+                    'activity_name': t.activity_name,
+                    'description': t.description,
+                    'category_name': t.category.name if t.category else None,
+                    'category_icon': t.category.icon if t.category else '',
+                    'duration': t.duration,
+                    'is_active': t.is_active,
+                    'schedule_time': None,
+                    'is_completed_today': False,
+                    'created_at': t.created_at.isoformat() if t.created_at else None,
+                })
+
+        # Merge: user habits + admin templates
+        all_habits = list(serializer.data) + template_habits
+
         today = timezone.localdate()
         completions_today = HabitCompletion.objects.filter(
             user=user, completed_date=today
         ).count()
 
         is_pro = BYPASS_PRO_LIMITS or getattr(user, 'is_pro', False)
-        count = queryset.count()
+        count = len(all_habits)
         return success_response(
             {
-                'habits': serializer.data,
+                'habits': all_habits,
                 'count': count,
                 'limit': FREE_HABIT_LIMIT,
                 'is_pro': is_pro,

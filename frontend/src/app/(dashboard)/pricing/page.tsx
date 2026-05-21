@@ -2,10 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { createFeature, deleteFeature, listPlans, updateFeature, updatePlan, PricingPlan, PlanFeature } from "@/lib/index";
+import { createFeature, deleteFeature, listPlans, updateFeature, updatePlan, createPlan, PricingPlan, PlanFeature } from "@/lib/index";
 import { EditPlanModal, EditPlanData } from "@/components/dashboard/modals/EditPlanModal";
+import { AddPlanModal, CreatePlanData } from "@/components/dashboard/modals/AddPlanModal";
 import { FeatureModal, FeatureFormData } from "@/components/dashboard/modals/FeatureModal";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 function formatDuration(duration: PricingPlan["duration"]) {
@@ -20,6 +21,7 @@ export default function Pricing() {
   const [error, setError] = useState<string | null>(null);
   const [editPlan, setEditPlan] = useState<PricingPlan | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [featureOpen, setFeatureOpen] = useState(false);
   const [featurePlan, setFeaturePlan] = useState<PricingPlan | null>(null);
   const [featureItem, setFeatureItem] = useState<FeatureFormData | null>(null);
@@ -107,11 +109,17 @@ export default function Pricing() {
 
   return (
     <div className="space-y-5 p-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Subscription Pricing</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Configure plan features, pricing tiers, and revenue settings.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Subscription Pricing</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Configure plan features, pricing tiers, and revenue settings.
+          </p>
+        </div>
+        <Button onClick={() => setAddOpen(true)} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Create Plan
+        </Button>
       </div>
 
       {error && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</div>}
@@ -187,6 +195,22 @@ export default function Pricing() {
           ))
         )}
       </div>
+
+      <AddPlanModal
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onSubmit={async (data: CreatePlanData) => {
+          const created = await createPlan({
+            name: data.name,
+            slug: data.slug,
+            price: data.price,
+            duration: data.duration,
+            is_active: data.is_active,
+            is_popular: data.is_popular,
+          });
+          setPlans((prev) => [...prev, created]);
+        }}
+      />
 
       <EditPlanModal
         open={editOpen}

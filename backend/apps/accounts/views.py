@@ -94,6 +94,21 @@ class ProfileView(StandardizedResponseMixin, generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
+    def perform_update(self, serializer):
+        old_email = self.request.user.email
+        user = serializer.save()
+        if user.email and user.email != old_email:
+            if user.is_admin_role:
+                # Admins don't need to verify their email upon change
+                pass
+            else:
+                user.email_verified = False
+                user.email_verify_token = generate_verification_token()
+                user.email_verification_code = generate_verification_code()
+                user.email_verification_code_created = timezone.now()
+                user.save(update_fields=['email_verified', 'email_verify_token', 'email_verification_code', 'email_verification_code_created'])
+                send_verification_email(user, self.request)
+
 
 class AvatarUploadView(StandardizedResponseMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]

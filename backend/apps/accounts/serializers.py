@@ -47,7 +47,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
                   'phone_number', 'avatar', 'plan', 'role', 'email_verified', 'created_at',
                   'check_ins', 'quiz_test', 'Rating']
-        read_only_fields = ['id', 'username', 'email', 'plan', 'role', 'email_verified', 'created_at']
+        read_only_fields = ['id', 'plan', 'role', 'email_verified', 'created_at']
 
     def get_check_ins(self, obj):
         return obj.checkins.count()

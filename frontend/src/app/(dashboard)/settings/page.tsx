@@ -76,6 +76,7 @@ export default function Settings() {
     setProfileSaving(true);
     try {
       const result = await updateAdminProfile({
+        username: profile.username?.trim(),
         first_name: profile.first_name?.trim(),
         last_name: profile.last_name?.trim(),
         email: profile.email?.trim(),
@@ -102,8 +103,8 @@ export default function Settings() {
       setPwError("Both fields are required");
       return;
     }
-    if (passwords.next.trim().length < 6) {
-      setPwError("New password must be at least 6 characters");
+    if (passwords.next.trim().length < 8) {
+      setPwError("New password must be at least 8 characters");
       return;
     }
     setPwSaving(true);
@@ -177,6 +178,18 @@ export default function Settings() {
               </div>
             ) : (
               <>
+                {/* Username */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="username" className="text-sm font-medium text-foreground">Username</Label>
+                  <Input
+                    id="username"
+                    placeholder="Enter username"
+                    value={profile.username ?? ""}
+                    onChange={(e) => setProfile((p) => ({ ...p, username: e.target.value }))}
+                    className="h-9 text-sm"
+                  />
+                </div>
+
                 {/* First Name */}
                 <div className="space-y-1.5">
                   <Label htmlFor="firstName" className="text-sm font-medium text-foreground">First Name</Label>

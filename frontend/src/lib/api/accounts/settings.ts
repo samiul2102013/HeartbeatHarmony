@@ -6,6 +6,7 @@ export const getAdminProfile = () =>
   requestJson("/api/users/profile/").then(extractData);
 
 export const updateAdminProfile = (data: {
+  username?: string;
   first_name?: string;
   last_name?: string;
   email?: string;
@@ -13,6 +14,7 @@ export const updateAdminProfile = (data: {
   avatar?: File | null;
 }) => {
   const body = new FormData();
+  if (data.username !== undefined) body.append("username", data.username);
   if (data.first_name !== undefined) body.append("first_name", data.first_name);
   if (data.last_name !== undefined) body.append("last_name", data.last_name);
   if (data.email !== undefined) body.append("email", data.email);
