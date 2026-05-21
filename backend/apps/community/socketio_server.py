@@ -31,33 +31,21 @@ def get_user_from_token(token_key):
 
 @sync_to_async
 def _save_community_msg(user, content):
-    from .models import CommunityMessage
-    return CommunityMessage.objects.create(sender=user, content=content)
+    from .services import create_community_message
+    return create_community_message(user, content)
 
 @sync_to_async
 def _save_dm(user, content, recipient_id):
-    from .models import DirectMessage
-    from apps.accounts.models import User
+    from .services import create_direct_message
     try:
-        receiver = User.objects.get(id=recipient_id)
-        return DirectMessage.objects.create(
-            sender=user, receiver=receiver, content=content,
-        )
-    except User.DoesNotExist:
+        return create_direct_message(user, int(recipient_id), content)
+    except ValueError:
         return None
 
 @sync_to_async
 def _mark_messages_read(user, other_id):
-    from .models import DirectMessage
-    return DirectMessage.objects.filter(
-        sender_id=other_id,
-        receiver=user,
-        is_read=False,
-    ).update(is_read=True)
-
-def _dm_room_name(user_id, other_id):
-    ids = sorted([user_id, other_id])
-    return f'{ids[0]}_{ids[1]}'
+    from .services import mark_dm_read
+    return mark_dm_read(user, other_id)
 
 @sio.event
 async def connect(sid, environ, auth):
@@ -147,43 +135,31 @@ async def message(sid, data):
         return
 
     if room == 'community':
-        msg = await _save_community_msg(user, content)
-        await sio.emit('chat_message', {
-            'room': 'community',
-            'id': msg.id,
-            'sender_id': user.id,
-            'sender_username': user.username,
-            'sender_avatar': user.avatar.url if user.avatar else None,
-            'content': content,
-            'file': None,
-            'message_type': 'text',
-            'created_at': msg.created_at.isoformat(),
-        }, room=COMMUNITY_GROUP)
+        try:
+            msg = await _save_community_msg(user, content)
+        except ValueError as exc:
+            await sio.emit('error', {'message': str(exc)}, to=sid)
+            return
+        from .services import community_message_payload
+        await sio.emit(
+            'chat_message',
+            community_message_payload(msg, user),
+            room=COMMUNITY_GROUP,
+        )
     elif room == 'dm':
         recipient_id = data.get('recipient_id')
         if not recipient_id:
             await sio.emit('error', {'message': 'Missing "recipient_id" for DM'}, to=sid)
             return
-            
+
         recipient_id = int(recipient_id)
         msg = await _save_dm(user, content, recipient_id)
         if not msg:
             await sio.emit('error', {'message': 'Recipient not found'}, to=sid)
             return
 
-        payload = {
-            'room': 'dm',
-            'room_name': _dm_room_name(user.id, recipient_id),
-            'id': msg.id,
-            'sender_id': user.id,
-            'sender_username': user.username,
-            'receiver_id': recipient_id,
-            'content': content,
-            'file': None,
-            'message_type': 'text',
-            'created_at': msg.created_at.isoformat(),
-        }
-        
+        from .services import direct_message_payload
+        payload = direct_message_payload(msg, user, recipient_id)
         await sio.emit('direct_message', payload, room=f"user_{user.id}")
         await sio.emit('direct_message', payload, room=f"user_{recipient_id}")
     else:
@@ -207,9 +183,10 @@ async def typing(sid, data):
         if not rid:
             return
         rid = int(rid)
+        from .services import dm_room_name
         payload = {
             'room': 'dm',
-            'room_name': _dm_room_name(user.id, rid),
+            'room_name': dm_room_name(user.id, rid),
             'user_id': user.id,
             'username': user.username,
         }
@@ -234,14 +211,32 @@ async def stop_typing(sid, data):
         if not rid:
             return
         rid = int(rid)
+        from .services import dm_room_name
         payload = {
             'room': 'dm',
-            'room_name': _dm_room_name(user.id, rid),
+            'room_name': dm_room_name(user.id, rid),
             'user_id': user.id,
             'username': user.username,
         }
         await sio.emit('user_stop_typing', payload, room=f"user_{user.id}", skip_sid=sid)
         await sio.emit('user_stop_typing', payload, room=f"user_{rid}")
+
+def broadcast_event_sync(room, event, data):
+    """Emit an event to a Socket.IO room from sync code (e.g. REST views)."""
+    global main_event_loop
+    loop = main_event_loop
+    if loop is None or not loop.is_running():
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        if main_event_loop is None:
+            main_event_loop = loop
+    asyncio.run_coroutine_threadsafe(
+        sio.emit(event, data, room=room),
+        loop,
+    )
+
 
 def emit_to_user_sync(user_id, event, data):
     """Emit any event to a user's personal room from sync code.
@@ -289,9 +284,10 @@ async def mark_read(sid, data):
     rid = int(rid)
     count = await _mark_messages_read(user, rid)
     if count:
+        from .services import dm_room_name
         payload = {
             'room': 'dm',
-            'room_name': _dm_room_name(user.id, rid),
+            'room_name': dm_room_name(user.id, rid),
             'reader_id': user.id,
             'reader_username': user.username,
             'count': count,

@@ -8,6 +8,7 @@ from rest_framework.filters import SearchFilter
 from django.contrib.auth import get_user_model
 
 from .models import Category, Habit, HabitCompletion, HabitTemplate, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT, BYPASS_PRO_LIMITS
+from .utils import get_adopted_template_ids, resolve_user_habit
 from .serializers import (
     CategorySerializer, HabitSerializer, HabitSummarySerializer,
     HabitCompletionSerializer, HabitReminderSerializer,
@@ -77,34 +78,22 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(queryset, many=True)
 
-        # Get admin-created templates and format them like user habits
+        # Admin templates not yet adopted — same response shape, numeric id
+        adopted_template_ids = get_adopted_template_ids(user)
         template_qs = HabitTemplate.objects.filter(is_active=True).select_related('category')
         category_id = request.query_params.get('category')
         if category_id:
             template_qs = template_qs.filter(category_id=category_id)
+        if adopted_template_ids:
+            template_qs = template_qs.exclude(id__in=adopted_template_ids)
 
-        # Collect activity names the user already has to avoid duplicates
-        user_habit_names = set(
-            queryset.values_list('activity_name', flat=True)
-        )
+        user_habit_ids = {h['id'] for h in serializer.data}
+        template_habits = [
+            HabitSummarySerializer.from_template(t)
+            for t in template_qs
+            if t.id not in user_habit_ids
+        ]
 
-        template_habits = []
-        for t in template_qs:
-            if t.activity_name not in user_habit_names:
-                template_habits.append({
-                    'id': f'template_{t.id}',
-                    'activity_name': t.activity_name,
-                    'description': t.description,
-                    'category_name': t.category.name if t.category else None,
-                    'category_icon': t.category.icon if t.category else '',
-                    'duration': t.duration,
-                    'is_active': t.is_active,
-                    'schedule_time': None,
-                    'is_completed_today': False,
-                    'created_at': t.created_at.isoformat() if t.created_at else None,
-                })
-
-        # Merge: user habits + admin templates
         all_habits = list(serializer.data) + template_habits
 
         today = timezone.localdate()
@@ -150,6 +139,14 @@ class HabitDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyA
     def get_queryset(self):
         return Habit.objects.filter(user=_resolve_user(self.request))
 
+    def get_object(self):
+        user = _resolve_user(self.request)
+        habit, err = resolve_user_habit(user, self.kwargs['pk'])
+        if err:
+            from rest_framework.exceptions import NotFound
+            raise NotFound(err)
+        return habit
+
     def perform_destroy(self, instance):
         # Soft delete
         instance.is_active = False
@@ -167,14 +164,9 @@ class HabitMarkDoneView(StandardizedResponseMixin, APIView):
     def post(self, request, pk):
         user = _resolve_user(request)
 
-        # Validate habit belongs to user and is active
-        try:
-            habit = Habit.objects.get(pk=pk, user=user, is_active=True)
-        except Habit.DoesNotExist:
-            return error_response(
-                'Habit not found.',
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
+        habit, err = resolve_user_habit(user, pk)
+        if err:
+            return error_response(err, status_code=status.HTTP_404_NOT_FOUND)
 
         today = timezone.localdate()
 
@@ -220,9 +212,13 @@ class HabitUndoView(StandardizedResponseMixin, APIView):
 
     def delete(self, request, pk):
         user = _resolve_user(request)
+        habit, err = resolve_user_habit(user, pk)
+        if err:
+            return error_response(err, status_code=status.HTTP_404_NOT_FOUND)
+
         today = timezone.localdate()
         deleted, _ = HabitCompletion.objects.filter(
-            user=user, habit_id=pk, completed_date=today
+            user=user, habit=habit, completed_date=today
         ).delete()
 
         if not deleted:

@@ -9,12 +9,22 @@ class CommunityMessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CommunityMessage
-        fields = ['id', 'sender', 'sender_username', 'sender_avatar', 'content', 'created_at']
-        read_only_fields = ['id', 'sender', 'sender_username', 'sender_avatar', 'created_at']
+        fields = [
+            'id', 'sender', 'sender_username', 'sender_avatar',
+            'content', 'file', 'message_type', 'created_at',
+        ]
+        read_only_fields = [
+            'id', 'sender', 'sender_username', 'sender_avatar', 'created_at',
+        ]
 
-    def create(self, validated_data):
-        validated_data['sender'] = self.context['request'].user
-        return super().create(validated_data)
+
+class CommunityMessageCreateSerializer(serializers.Serializer):
+    content = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
+    message_type = serializers.ChoiceField(
+        choices=CommunityMessage.MessageType.choices,
+        required=False,
+        default=CommunityMessage.MessageType.TEXT,
+    )
 
 
 class DirectMessageSerializer(serializers.ModelSerializer):
@@ -28,11 +38,14 @@ class DirectMessageSerializer(serializers.ModelSerializer):
             'receiver', 'receiver_username',
             'content', 'is_read', 'created_at',
         ]
-        read_only_fields = ['id', 'sender', 'sender_username', 'receiver_username', 'is_read', 'created_at']
+        read_only_fields = [
+            'id', 'sender', 'sender_username',
+            'receiver', 'receiver_username', 'is_read', 'created_at',
+        ]
 
-    def create(self, validated_data):
-        validated_data['sender'] = self.context['request'].user
-        return super().create(validated_data)
+
+class DirectMessageCreateSerializer(serializers.Serializer):
+    content = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
 
 
 class UserListSerializer(serializers.ModelSerializer):

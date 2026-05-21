@@ -37,6 +37,14 @@ class Habit(models.Model):
         null=True,
         related_name='habits'
     )
+    source_template = models.ForeignKey(
+        'HabitTemplate',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='adopted_habits',
+        help_text='Admin template this habit was created from, if any.',
+    )
     activity_name = models.CharField(max_length=150)
     description = models.TextField(blank=True, default='')
     duration = models.PositiveIntegerField(null=True, blank=True, help_text="Duration in minutes")

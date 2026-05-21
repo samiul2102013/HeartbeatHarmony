@@ -41,13 +41,16 @@ class HabitSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'category_detail', 'is_completed_today']
 
+    def _completion_user(self):
+        return self.context.get('resolved_user') or self.context.get('request').user
+
     def get_is_completed_today(self, obj):
-        request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
+        user = self._completion_user()
+        if not user or not getattr(user, 'is_authenticated', True):
             return False
         today = timezone.localdate()
         return HabitCompletion.objects.filter(
-            user=request.user, habit=obj, completed_date=today
+            user=user, habit=obj, completed_date=today
         ).exists()
 
     def validate(self, attrs):
@@ -65,10 +68,17 @@ class HabitSerializer(serializers.ModelSerializer):
         if template_id and self.instance is None:
             try:
                 template = HabitTemplate.objects.get(pk=template_id, is_active=True)
+                if Habit.objects.filter(
+                    user=user, source_template=template, is_active=True
+                ).exists():
+                    raise serializers.ValidationError(
+                        {'template_id': 'You already have this habit.'}
+                    )
                 attrs['category'] = template.category
                 attrs['activity_name'] = template.activity_name
                 attrs['description'] = template.description
                 attrs['duration'] = template.duration
+                attrs['source_template'] = template
             except HabitTemplate.DoesNotExist:
                 raise serializers.ValidationError({'template_id': 'Template not found.'})
         else:
@@ -105,14 +115,33 @@ class HabitSummarySerializer(serializers.ModelSerializer):
             'is_completed_today', 'created_at',
         ]
 
+    def _completion_user(self):
+        return self.context.get('resolved_user') or self.context.get('request').user
+
     def get_is_completed_today(self, obj):
-        request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
+        user = self._completion_user()
+        if not user or not getattr(user, 'is_authenticated', True):
             return False
         today = timezone.localdate()
         return HabitCompletion.objects.filter(
-            user=request.user, habit=obj, completed_date=today
+            user=user, habit=obj, completed_date=today
         ).exists()
+
+    @staticmethod
+    def from_template(template):
+        """Same list shape as a user habit, using the template's numeric id."""
+        return {
+            'id': template.id,
+            'activity_name': template.activity_name,
+            'description': template.description,
+            'category_name': template.category.name if template.category else None,
+            'category_icon': template.category.icon if template.category else '',
+            'duration': template.duration,
+            'is_active': template.is_active,
+            'schedule_time': None,
+            'is_completed_today': False,
+            'created_at': template.created_at,
+        }
 
 
 class HabitReminderSerializer(serializers.ModelSerializer):
