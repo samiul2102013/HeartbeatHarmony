@@ -7,6 +7,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apps.accounts.urls')),
+    path('api/notifications/', include('apps.notifications.urls')),
     path('api/', include('apps.checkins.urls')),
     # Enabled app routes
     path('api/', include('apps.habits.urls')),
@@ -15,7 +16,6 @@ urlpatterns = [
     path('api/', include('apps.community.urls')),
     path('api/', include('apps.pricing.urls')),
     path('api/', include('apps.core.urls')),
-    path('api/', include('apps.notifications.urls')),
 
     # API Docs
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

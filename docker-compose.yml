@@ -25,6 +25,9 @@ services:
     networks:
       - hartbeat-network
 
+
+      
+
 volumes:
   redis_data:
 

@@ -435,6 +435,34 @@ class AdminStudyMaterialListCreateView(StandardizedResponseMixin, generics.ListC
     def get_queryset(self):
         return StudyMaterial.objects.select_related('topic').order_by('-created_at')
 
+    def perform_create(self, serializer):
+        material = serializer.save()
+        
+        from apps.accounts.models import User
+        from apps.notifications.models import Notification
+        from apps.community.socketio_server import broadcast_event_sync
+        
+        users = User.objects.exclude(id=self.request.user.id).filter(is_active=True)
+        title = "New Study Material"
+        message = f"A new study material has been uploaded: {material.title}."
+        
+        notifications = [
+            Notification(
+                user=user,
+                title=title,
+                message=message,
+                notification_type='study'
+            ) for user in users
+        ]
+        Notification.objects.bulk_create(notifications)
+        
+        broadcast_event_sync('community', 'notification', {
+            'title': title,
+            'message': message,
+            'text': message,
+            'notification_type': 'study'
+        })
+
 
 class AdminStudyMaterialDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = StudyMaterial.objects.all()
@@ -453,6 +481,34 @@ class AdminQuizListCreateView(StandardizedResponseMixin, generics.ListCreateAPIV
 
     def get_queryset(self):
         return Quiz.objects.annotate(question_count=Count('questions')).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        quiz = serializer.save()
+        
+        from apps.accounts.models import User
+        from apps.notifications.models import Notification
+        from apps.community.socketio_server import broadcast_event_sync
+        
+        users = User.objects.exclude(id=self.request.user.id).filter(is_active=True)
+        title = "New Quiz Available"
+        message = f"A new quiz is ready for you: {quiz.title}. Test your knowledge!"
+        
+        notifications = [
+            Notification(
+                user=user,
+                title=title,
+                message=message,
+                notification_type='study'
+            ) for user in users
+        ]
+        Notification.objects.bulk_create(notifications)
+        
+        broadcast_event_sync('community', 'notification', {
+            'title': title,
+            'message': message,
+            'text': message,
+            'notification_type': 'study'
+        })
 
 
 class AdminQuizDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):

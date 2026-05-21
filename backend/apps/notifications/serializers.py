@@ -2,7 +2,9 @@ from rest_framework import serializers
 from .models import Notification
 
 class NotificationSerializer(serializers.ModelSerializer):
+    text = serializers.CharField(source='message', read_only=True)
+
     class Meta:
         model = Notification
-        fields = ['id', 'title', 'message', 'notification_type', 'is_read', 'created_at']
-        read_only_fields = ['id', 'title', 'message', 'notification_type', 'created_at']
+        fields = ['id', 'title', 'message', 'text', 'notification_type', 'is_read', 'created_at']
+        read_only_fields = ['id', 'title', 'message', 'text', 'notification_type', 'created_at']

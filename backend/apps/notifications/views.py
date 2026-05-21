@@ -5,7 +5,6 @@ from .serializers import NotificationSerializer
 from apps.core.response_utils import StandardizedResponseMixin, success_response, error_response
 
 class NotificationListView(StandardizedResponseMixin, generics.ListAPIView):
-    33
     """List all notifications for the authenticated user."""
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]

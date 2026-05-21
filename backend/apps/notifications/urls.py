@@ -1,8 +1,8 @@
-from django.urls import path
+from django.urls import re_path
 from . import views
 
 urlpatterns = [
-    path('', views.NotificationListView.as_view()),
-    path('<int:pk>/read/', views.NotificationMarkReadView.as_view()),
-    path('read-all/', views.NotificationMarkAllReadView.as_view()),
+    re_path(r'^$', views.NotificationListView.as_view()),
+    re_path(r'^(?P<pk>\d+)/read/?$', views.NotificationMarkReadView.as_view()),
+    re_path(r'^read-all/?$', views.NotificationMarkAllReadView.as_view()),
 ]
