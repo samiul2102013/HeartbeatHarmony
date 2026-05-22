@@ -1,7 +1,6 @@
 "use client";
 
 import { useAppForm } from "@/components/form/form-context";
-import { Checkbox } from "@/components/ui/checkbox";
 import { loginAdmin, setAdminSession } from "@/lib/index";
 import Link from "next/link";
 import { useState } from "react";
@@ -10,7 +9,6 @@ import { z } from "zod";
 const signinSchema = z.object({
     email: z.email("Enter your email address"),
     password: z.string().min(6, "Password must be at least 6 characters").max(32, "Password must be at most 32 characters"),
-    remember: z.boolean(),
 });
 
 export default function Signin() {
@@ -18,7 +16,7 @@ export default function Signin() {
     const [isLoading, setIsLoading] = useState(false);
 
     const form = useAppForm({
-        defaultValues: { email: "", password: "", remember: false },
+        defaultValues: { email: "", password: "" },
         validators: { onChange: signinSchema },
         onSubmit: async ({ value }) => {
             try {
@@ -61,23 +59,7 @@ export default function Signin() {
                     {(field) => <field.FormInput type="password" label="Password" placeholder="Enter your password" disabled={isLoading} />}
                 </form.AppField>
 
-                <div className="flex items-center justify-between">
-                    <form.AppField name="remember">
-                        {(field) => (
-                            <div className="flex items-center gap-2">
-                                <Checkbox
-                                    id="remember"
-                                    checked={field.state.value}
-                                    onCheckedChange={(c) => field.handleChange(c === true)}
-                                    disabled={isLoading}
-                                />
-                                <label htmlFor="remember" className="text-sm text-muted-foreground">
-                                    Remember me
-                                </label>
-                            </div>
-                        )}
-                    </form.AppField>
-
+                <div className="flex items-center justify-end">
                     <Link href="/forgot-password" className="text-primary font-medium hover:underline">
                         Forgot password?
                     </Link>
