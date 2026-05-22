@@ -2,7 +2,6 @@
 
 import { useAppForm } from "@/components/form/form-context";
 import { loginAdmin, setAdminSession } from "@/lib/index";
-import Link from "next/link";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -59,12 +58,6 @@ export default function Signin() {
                     {(field) => <field.FormInput type="password" label="Password" placeholder="Enter your password" disabled={isLoading} />}
                 </form.AppField>
 
-                <div className="flex items-center justify-end">
-                    <Link href="/forgot-password" className="text-primary font-medium hover:underline">
-                        Forgot password?
-                    </Link>
-                </div>
-
                 <button
                     type="submit"
                     disabled={isLoading}
@@ -73,13 +66,6 @@ export default function Signin() {
                     {isLoading ? "Signing in..." : "Sign In"}
                 </button>
             </form>
-
-            <p className="text-center text-muted-foreground">
-                Do not have account?{" "}
-                <Link href="/signup" className="text-foreground font-medium hover:underline">
-                    Sign up
-                </Link>
-            </p>
         </div>
     );
 }
