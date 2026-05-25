@@ -35,7 +35,7 @@ class Mood(models.Model):
     def save(self, *args, **kwargs):
         if not self.svg:
             svg_content = self.build_svg().encode('utf-8')
-            file_name = f"moods/svg/{slugify(self.name) or f'mood-{self.pk or uuid.uuid4().hex}' }.svg"
+            file_name = f"{slugify(self.name) or f'mood-{self.pk or uuid.uuid4().hex}'}.svg"
             self.svg.save(file_name, ContentFile(svg_content), save=False)
         super().save(*args, **kwargs)
 
