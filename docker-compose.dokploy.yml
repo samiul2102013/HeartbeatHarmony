@@ -49,6 +49,7 @@ services:
       - "traefik.http.routers.backend.rule=Host(`${API_DOMAIN}`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certResolver=letsencrypt"
+      - "traefik.http.routers.backend.service=backend"
       - "traefik.http.routers.backend.priority=10"
       - "traefik.http.services.backend.loadbalancer.server.port=8005"
       - "traefik.http.routers.backend.middlewares=backend-ws"
@@ -73,6 +74,7 @@ services:
       - "traefik.http.routers.frontend.rule=Host(`${FRONTEND_DOMAIN}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certResolver=letsencrypt"
+      - "traefik.http.routers.frontend.service=frontend"
       - "traefik.http.routers.frontend.priority=10"
       - "traefik.http.services.frontend.loadbalancer.server.port=3004"
       # Health check
