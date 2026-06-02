@@ -1,19 +1,21 @@
 from django.utils import timezone
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db.models import Count
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.db.models import Count, Prefetch
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from django.contrib.auth import get_user_model
 
-from .models import Category, Habit, HabitCompletion, HabitTemplate, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT, BYPASS_PRO_LIMITS
+from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT, BYPASS_PRO_LIMITS
 from .utils import get_adopted_template_ids, resolve_user_habit
 from .serializers import (
     CategorySerializer, HabitSerializer, HabitSummarySerializer,
     HabitCompletionSerializer, HabitReminderSerializer,
     AdminCategorySerializer, AdminHabitSerializer,
     HabitTemplateSerializer, AdminHabitTemplateSerializer,
+    HabitMaterialSerializer, AdminHabitMaterialSerializer,
 )
 from apps.core.permissions import IsAdminRole
 from apps.core.response_utils import StandardizedResponseMixin, success_response, error_response
@@ -64,13 +66,15 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
     def get_queryset(self):
         queryset = Habit.objects.filter(
             user=_resolve_user(self.request), is_active=True
-        ).select_related('category')
-        
+        ).select_related('category').prefetch_related(
+            Prefetch('material', queryset=HabitMaterial.objects.all())
+        )
+
         # Explicitly filter by category if provided
         category_id = self.request.query_params.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
-            
+
         return queryset
 
     def list(self, request, *args, **kwargs):
@@ -137,7 +141,9 @@ class HabitDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyA
         return ctx
 
     def get_queryset(self):
-        return Habit.objects.filter(user=_resolve_user(self.request))
+        return Habit.objects.filter(user=_resolve_user(self.request)).prefetch_related(
+            Prefetch('material', queryset=HabitMaterial.objects.all())
+        )
 
     def get_object(self):
         user = _resolve_user(self.request)
@@ -402,6 +408,112 @@ class AdminHabitTemplateDetailView(StandardizedResponseMixin, generics.RetrieveU
         # Allow partial updates from admin edit form.
         kwargs['partial'] = True
         return self.update(request, *args, **kwargs)
+
+
+class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_serializer_class(self):
+        user = _resolve_user(self.request)
+        if user.is_staff or getattr(user, 'role', None) == 'admin':
+            return AdminHabitMaterialSerializer
+        return HabitMaterialSerializer
+
+    def get_queryset(self):
+        queryset = HabitMaterial.objects.select_related('habit', 'habit__user').order_by('-created_at')
+        habit_id = self.request.query_params.get('habit')
+        if habit_id:
+            queryset = queryset.filter(habit_id=habit_id)
+        user = _resolve_user(self.request)
+        if not (user.is_staff or getattr(user, 'role', None) == 'admin'):
+            queryset = queryset.filter(habit__user=user)
+        return queryset
+
+    def perform_create(self, serializer):
+        user = _resolve_user(self.request)
+        habit = serializer.validated_data.get('habit')
+        if not (user.is_staff or getattr(user, 'role', None) == 'admin') and habit.user_id != user.id:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You can only add materials to your own habits.')
+        if HabitMaterial.objects.filter(habit=habit).exists():
+            raise serializers.ValidationError(
+                {'habit': 'This habit already has a material. Edit the existing one instead.'}
+            )
+        serializer.save()
+
+
+class HabitMaterialDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_serializer_class(self):
+        user = _resolve_user(self.request)
+        if user.is_staff or getattr(user, 'role', None) == 'admin':
+            return AdminHabitMaterialSerializer
+        return HabitMaterialSerializer
+
+    def get_queryset(self):
+        queryset = HabitMaterial.objects.select_related('habit', 'habit__user')
+        user = _resolve_user(self.request)
+        if not (user.is_staff or getattr(user, 'role', None) == 'admin'):
+            queryset = queryset.filter(habit__user=user)
+        return queryset
+
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return success_response(message='Material deleted successfully.', status_code=status.HTTP_200_OK)
+
+class HabitMaterialEditView(HabitMaterialDetailView):
+    def patch(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.partial_update(request, *args, **kwargs)
+
+
+class HabitMaterialDeleteView(HabitMaterialDetailView):
+    pass
+
+
+class HabitMaterialByHabitView(StandardizedResponseMixin, APIView):
+    """
+    GET /api/habits/<habit_id>/material/
+    Returns the single material attached to a habit, or 404 if none exists.
+    Owners and admins can read; non-owners get 404 (not 403) to avoid leaking
+    that the habit exists.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        user = _resolve_user(request)
+        # Resolve habit, respecting owner-or-admin visibility
+        try:
+            habit = Habit.objects.select_related('user', 'category').get(pk=pk)
+        except Habit.DoesNotExist:
+            return error_response('Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
+
+        is_admin = user.is_staff or getattr(user, 'role', None) == 'admin'
+        if not is_admin and habit.user_id != user.id:
+            return error_response('Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
+
+        material = (
+            HabitMaterial.objects
+            .select_related('habit', 'habit__user')
+            .filter(habit=habit)
+            .first()
+        )
+        if material is None:
+            return error_response(
+                'No material attached to this habit.',
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer_class = (
+            AdminHabitMaterialSerializer
+            if is_admin else HabitMaterialSerializer
+        )
+        return success_response(serializer_class(material).data)
 
 
 # ── Habit Template Views ─────────────────────────────────────

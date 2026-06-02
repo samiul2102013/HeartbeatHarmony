@@ -11,15 +11,23 @@ type UploadBookModalProps = {
   onSubmit?: (data: { name: string; date: string }) => void | Promise<void>;
 };
 
+const getTodayString = () => {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export function UploadBookModal({ open, onOpenChange, onSubmit }: UploadBookModalProps) {
   const [name, setName] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(getTodayString());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
     setName("");
-    setDate("");
+    setDate(getTodayString());
     setError(null);
     setSaving(false);
   };
@@ -58,15 +66,9 @@ export function UploadBookModal({ open, onOpenChange, onSubmit }: UploadBookModa
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <ModalField label="Subject Name">
-              <Input placeholder="Enter title" value={name} onChange={(event) => setName(event.target.value)} className="h-11" />
-            </ModalField>
-
-            <ModalField label="Date">
-              <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="h-11" />
-            </ModalField>
-          </div>
+          <ModalField label="Subject Name">
+            <Input placeholder="Enter title" value={name} onChange={(event) => setName(event.target.value)} className="h-11" />
+          </ModalField>
 
           <ModalError message={error} />
         </div>

@@ -56,7 +56,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: Props) {
 
   const handleSubmit = async () => {
     if (!form.username.trim() || !form.email.trim()) {
-      setError("Username and email are required.");
+      setError("Institute name and email are required.");
       return;
     }
 
@@ -124,16 +124,16 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: Props) {
             </div>
           </div>
 
-          {/* Username */}
+          {/* Institute Name */}
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">
-              Username <span className="text-destructive">*</span>
+              Institute Name <span className="text-destructive">*</span>
             </Label>
             <Input
               value={form.username}
               onChange={(e) => set("username", e.target.value)}
               className="h-8 text-sm"
-              placeholder="username"
+              placeholder="Institute name"
             />
           </div>
 

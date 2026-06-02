@@ -12,6 +12,20 @@ export type HabitQuery = {
 export const listHabits = (query?: HabitQuery) =>
   requestJson("/api/admin/habits/", { query }).then(extractData);
 
+export type AdminHabit = {
+  id: number;
+  user: number;
+  user_username?: string;
+  category: number;
+  category_name?: string;
+  activity_name: string;
+  description?: string;
+  duration?: number | null;
+  is_active: boolean;
+  schedule_time?: string | null;
+  created_at: string;
+};
+
 // ── Habit Templates ──────────────────────────────────────────
 
 export type HabitTemplate = {

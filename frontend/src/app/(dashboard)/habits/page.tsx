@@ -49,6 +49,7 @@ function normalizeResponse<T>(res: unknown): T[] {
 type HabitRow = {
   id: number;
   category: string;
+  category_name?: string;
   activity_name: string;
   duration: number;
   status: "Active" | "Inactive";
@@ -57,7 +58,8 @@ type HabitRow = {
 function mapTemplate(t: HabitTemplate): HabitRow {
   return {
     id: t.id,
-    category: t.category_name || `Category #${t.category}`,
+    category: t.category_name || "Uncategorized",
+    category_name: t.category_name || undefined,
     activity_name: t.activity_name,
     duration: t.duration,
     status: t.is_active ? "Active" : "Inactive",
@@ -283,7 +285,7 @@ export default function HabitsPage() {
                             setEditTarget({
                               id: habit.id,
                               category: categories.find((c) => c.name === habit.category)?.id || 0,
-                              category_name: habit.category,
+                              category_name: habit.category_name || habit.category,
                               activity_name: habit.activity_name,
                               description: "",
                               duration: habit.duration,

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Habit, HabitCompletion, HabitTemplate
+from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial
 
 
 @admin.register(Category)
@@ -26,3 +26,10 @@ class HabitTemplateAdmin(admin.ModelAdmin):
     list_display = ['activity_name', 'category', 'duration', 'is_active']
     list_filter = ['category', 'is_active']
     search_fields = ['activity_name']
+
+
+@admin.register(HabitMaterial)
+class HabitMaterialAdmin(admin.ModelAdmin):
+    list_display = ['title', 'habit', 'material_type', 'is_active', 'created_at']
+    list_filter = ['material_type', 'is_active']
+    search_fields = ['title', 'habit__activity_name']

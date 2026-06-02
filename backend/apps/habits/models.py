@@ -99,6 +99,38 @@ class HabitTemplate(models.Model):
         return f"{self.category.name} — {self.activity_name}"
 
 
+class HabitMaterial(models.Model):
+    class MaterialType(models.TextChoices):
+        PDF = 'pdf', 'PDF'
+        VIDEO = 'video', 'Video Link'
+
+    habit = models.OneToOneField(
+        Habit,
+        on_delete=models.CASCADE,
+        related_name='material'
+    )
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default='')
+    material_type = models.CharField(
+        max_length=10, choices=MaterialType.choices, default=MaterialType.PDF
+    )
+    file = models.FileField(
+        upload_to='habits/materials/', null=True, blank=True,
+        help_text='Upload material file (PDF or Video)'
+    )
+    video_url = models.URLField(blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'habit_materials'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.habit.activity_name} — {self.title}"
+
+
 class HabitCompletion(models.Model):
     """Tracks when a premium user marks a habit as done for a given day."""
     user = models.ForeignKey(

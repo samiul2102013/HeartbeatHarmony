@@ -3,10 +3,28 @@ from rest_framework import serializers
 from .models import Mood, CheckIn
 
 
+def _abs_url(request, file_field):
+    """Return absolute URL for a FileField, or None if no file."""
+    if not file_field:
+        return None
+    try:
+        url = file_field.url
+    except (ValueError, AttributeError):
+        return None
+    if request is not None:
+        return request.build_absolute_uri(url)
+    return url
+
+
 class MoodSerializer(serializers.ModelSerializer):
+    svg = serializers.SerializerMethodField()
+
     class Meta:
         model = Mood
         fields = ['id', 'name', 'emoji', 'svg', 'score', 'is_active']
+
+    def get_svg(self, obj):
+        return _abs_url(self.context.get('request'), obj.svg)
 
 
 class CheckInSerializer(serializers.ModelSerializer):
@@ -56,13 +74,19 @@ class CheckInSummarySerializer(serializers.ModelSerializer):
 # ── Admin serializers ─────────────────────────────────────────
 
 class AdminMoodSerializer(serializers.ModelSerializer):
+    svg = serializers.SerializerMethodField()
+
     class Meta:
         model = Mood
         fields = '__all__'
 
+    def get_svg(self, obj):
+        return _abs_url(self.context.get('request'), obj.svg)
+
     def to_internal_value(self, data):
-        # Frontend sends SVG file under 'emoji' key; redirect to 'svg' field
-        if 'emoji' in data:
+        # Frontend may send the image file under 'emoji' or 'svg' key.
+        # Accept both for backward compatibility.
+        if 'emoji' in data and 'svg' not in data:
             emoji_val = data.get('emoji')
             if hasattr(emoji_val, 'read'):
                 data = data.copy()

@@ -50,8 +50,9 @@ function mapUser(user: AdminUser): UserRow {
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
   return {
     id: user.id,
-    name: fullName || user.username,
+    name: fullName || user.institute_name || user.username,
     username: user.username,
+    institute_name: user.institute_name,
     image: resolveUserAvatarUrl(user.avatar, user.username),
     email: user.email,
     phone: user.phone_number || "-",
@@ -84,7 +85,7 @@ function ViewUserDialog({ user, open, onOpenChange }: {
           </div>
           <div className="text-center">
             <p className="text-base font-semibold">{user.name}</p>
-            <p className="text-xs text-muted-foreground">@{user.username}</p>
+            <p className="text-xs text-muted-foreground">@{user.institute_name || user.username}</p>
             <p className="text-sm text-muted-foreground">{user.email}</p>
           </div>
         </div>

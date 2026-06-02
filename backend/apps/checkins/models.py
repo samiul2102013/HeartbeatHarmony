@@ -10,7 +10,7 @@ class Mood(models.Model):
     """Admin-managed mood options (e.g. Joyful, Calm, Hopeful, …)."""
     name = models.CharField(max_length=50, unique=True)
     emoji = models.CharField(max_length=255, blank=True)
-    svg = models.FileField(upload_to='moods/svg/', blank=True, null=True)
+    svg = models.FileField(upload_to='moods/images/', blank=True, null=True)
     score = models.PositiveSmallIntegerField(
         help_text="Base score contribution (1-10)",
         validators=[MinValueValidator(1), MaxValueValidator(10)]

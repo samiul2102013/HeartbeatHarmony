@@ -456,7 +456,7 @@ class AdminQuizSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Quiz
-        fields = ['id', 'topic', 'title', 'description', 'is_active', 'question_count', 'questions', 'created_at']
+        fields = ['id', 'topic', 'title', 'description', 'is_active', 'is_selected', 'question_count', 'questions', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 

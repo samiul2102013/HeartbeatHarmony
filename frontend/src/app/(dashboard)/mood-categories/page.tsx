@@ -186,7 +186,7 @@ export default function MoodCategoriesPage() {
         <Table>
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent" style={{ backgroundColor: "rgba(209,61,61,0.06)" }}>
-              {["Name", "SVG", "Color", "Type", "Score", "Status", "Action"].map((h) => (
+              {["Name", "Image", "Color", "Type", "Score", "Status", "Action"].map((h) => (
                 <TableHead key={h} className={`${h === "Name" ? "pl-5 " : ""}text-xs font-semibold uppercase tracking-wide text-muted-foreground`}>{h}</TableHead>
               ))}
             </TableRow>

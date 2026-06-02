@@ -24,6 +24,7 @@ export type UserRow = {
   id: number;
   name: string;
   username: string;
+  institute_name?: string;
   image: string;
   email: string;
   phone: string;
@@ -119,8 +120,9 @@ export function EditUserDialog({ user, open, onOpenChange, onSave }: Props) {
 
       onSave({
         ...user,
-        name: fullName || refreshedUser.username,
+        name: fullName || refreshedUser.institute_name || refreshedUser.username,
         username: refreshedUser.username,
+        institute_name: refreshedUser.institute_name,
         email: refreshedUser.email,
         phone: refreshedUser.phone_number || "-",
         plan: refreshedUser.plan === "pro" ? "Premium" : "Free",
@@ -206,14 +208,14 @@ export function EditUserDialog({ user, open, onOpenChange, onSave }: Props) {
             </div>
           </div>
 
-          {/* Username */}
+          {/* Institute Name */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Username</Label>
+            <Label className="text-xs font-medium">Institute Name</Label>
             <Input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="h-8 text-sm"
-              placeholder="username"
+              placeholder="Institute name"
             />
           </div>
 

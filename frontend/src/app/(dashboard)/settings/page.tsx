@@ -11,6 +11,7 @@ import { getAdminProfile, updateAdminProfile, changeAdminPassword } from "@/lib/
 interface ProfileData {
   id?: number;
   username?: string;
+  institute_name?: string;
   email?: string;
   first_name?: string;
   last_name?: string;
@@ -44,6 +45,7 @@ export default function Settings() {
         setProfile({
           id: data?.id,
           username: data?.username,
+          institute_name: data?.institute_name ?? data?.username ?? "",
           email: data?.email ?? "",
           first_name: data?.first_name ?? "",
           last_name: data?.last_name ?? "",
@@ -76,7 +78,7 @@ export default function Settings() {
     setProfileSaving(true);
     try {
       const result = await updateAdminProfile({
-        username: profile.username?.trim(),
+        institute_name: profile.institute_name?.trim() || profile.username?.trim(),
         first_name: profile.first_name?.trim(),
         last_name: profile.last_name?.trim(),
         email: profile.email?.trim(),
@@ -122,8 +124,8 @@ export default function Settings() {
     }
   };
 
-  const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.username || "Admin User";
-  const avatarUrl = profile.avatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username ?? "Admin"}`;
+  const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.institute_name || profile.username || "Admin User";
+  const avatarUrl = profile.avatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.institute_name ?? profile.username ?? "Admin"}`;
 
   return (
     <div className="p-6 space-y-5">
@@ -178,14 +180,14 @@ export default function Settings() {
               </div>
             ) : (
               <>
-                {/* Username */}
+                {/* Institute Name */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="username" className="text-sm font-medium text-foreground">Username</Label>
+                  <Label htmlFor="username" className="text-sm font-medium text-foreground">Institute Name</Label>
                   <Input
                     id="username"
-                    placeholder="Enter username"
-                    value={profile.username ?? ""}
-                    onChange={(e) => setProfile((p) => ({ ...p, username: e.target.value }))}
+                    placeholder="Enter institute name"
+                    value={profile.institute_name ?? profile.username ?? ""}
+                    onChange={(e) => setProfile((p) => ({ ...p, institute_name: e.target.value }))}
                     className="h-9 text-sm"
                   />
                 </div>

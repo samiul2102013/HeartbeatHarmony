@@ -379,7 +379,7 @@ class AdminUserListView(StandardizedResponseMixin, generics.ListAPIView):
     pagination_class = None
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['plan', 'is_active', 'role', 'email_verified']
-    search_fields = ['username', 'email', 'first_name', 'last_name']
+    search_fields = ['username', 'institute_name', 'email', 'first_name', 'last_name']
 
 
 class AdminUserDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):

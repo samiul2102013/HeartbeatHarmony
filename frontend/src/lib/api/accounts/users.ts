@@ -58,6 +58,7 @@ export type AdminCreateUserPayload = {
 export type AdminUser = {
   id: number;
   username: string;
+  institute_name?: string;
   email: string;
   first_name: string;
   last_name: string;

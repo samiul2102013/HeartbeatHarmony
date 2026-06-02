@@ -19,6 +19,7 @@ import {
   listQuizzes,
   listTopics,
   updateQuestion,
+  updateQuiz,
   StudyQuiz,
   StudyQuestion,
   StudyTopic,
@@ -31,6 +32,7 @@ type QuizItem = {
   title: string;
   date: string;
   type: string;
+  is_selected: boolean;
   questions: QuizQuestion[];
 };
 
@@ -65,6 +67,7 @@ function mapQuiz(quiz: StudyQuiz): QuizItem {
       year: "2-digit",
     }),
     type: quiz.topic_title ?? "Question Set",
+    is_selected: !!quiz.is_selected,
     questions: toQuizQuestions(quiz.topic_title ?? quiz.title, quiz.questions),
   };
 }
@@ -78,6 +81,16 @@ export default function QuizTestPage() {
   const [scoreQuiz, setScoreQuiz] = useState<QuizItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleSelectQuiz = async (quizId: number) => {
+    try {
+      await updateQuiz(quizId, { is_selected: true });
+      const quizzesData = await listQuizzes();
+      setQuizzes((Array.isArray(quizzesData) ? quizzesData : []).map(mapQuiz));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to select quiz");
+    }
+  };
 
     useEffect(() => {
     let mounted = true;
@@ -220,6 +233,15 @@ export default function QuizTestPage() {
                   <Button variant="outline" className="h-8 px-3 text-sm" style={{ color: "var(--primary)", borderColor: "rgba(209,61,61,0.35)" }} onClick={() => void handleOpenScore(quiz)}>
                     See Score
                   </Button>
+                  {quiz.is_selected ? (
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-900/50 ml-auto">
+                      Active on Mobile
+                    </span>
+                  ) : (
+                    <Button variant="ghost" className="h-8 px-3 text-sm text-muted-foreground hover:text-foreground ml-auto" onClick={() => void handleSelectQuiz(quiz.id)}>
+                      Select this quiz
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

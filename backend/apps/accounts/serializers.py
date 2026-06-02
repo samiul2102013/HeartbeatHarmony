@@ -8,6 +8,7 @@ from .models import User
 
 class RegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(required=False, allow_blank=True)
+    institute_name = serializers.CharField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, validators=[validate_password])
     email = serializers.EmailField(
         validators=[UniqueValidator(queryset=User.objects.all())]
@@ -15,7 +16,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name',
+        fields = ['id', 'username', 'institute_name', 'email', 'first_name', 'last_name',
                   'phone_number', 'password']
 
     def validate_email(self, value):
@@ -23,8 +24,11 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         email = validated_data.get('email')
-        
-        # If frontend didn't pass a username, generate one from email
+
+        institute_name = validated_data.pop('institute_name', '').strip()
+        if institute_name:
+            validated_data['institute_name'] = institute_name
+
         if not validated_data.get('username'):
             base_username = email.split('@')[0]
             username = base_username
@@ -44,7 +48,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name',
+        fields = ['id', 'username', 'institute_name', 'email', 'first_name', 'last_name',
                   'phone_number', 'avatar', 'plan', 'role', 'email_verified', 'created_at',
                   'check_ins', 'quiz_test', 'Rating']
         read_only_fields = ['id', 'plan', 'role', 'email_verified', 'created_at']
@@ -136,7 +140,7 @@ class ResetPasswordSerializer(serializers.Serializer):
 class AdminUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name',
+        fields = ['id', 'username', 'institute_name', 'email', 'first_name', 'last_name',
                   'phone_number', 'avatar', 'plan', 'role', 'email_verified', 'is_active', 'created_at']
         read_only_fields = ['id', 'created_at']
 
@@ -185,15 +189,10 @@ class CustomTokenObtainPairSerializer(serializers.Serializer):
         if username and email and user.username != username and user.email != email:
             raise serializers.ValidationError('Username and email do not belong to the same account.')
 
-        authenticated_user = authenticate(
-            request=self.context.get('request'),
-            username=user.username,
-            password=password,
-        )
-        if authenticated_user is None:
+        if not user.check_password(password):
             raise serializers.ValidationError('Unable to log in with the provided credentials.')
 
-        data = self._build_token_pair(authenticated_user)
-        data['user'] = UserProfileSerializer(authenticated_user).data
-        data['_user'] = authenticated_user  # For LoginView to access the user object
+        data = self._build_token_pair(user)
+        data['user'] = UserProfileSerializer(user).data
+        data['_user'] = user  # For LoginView to access the user object
         return data

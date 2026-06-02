@@ -110,9 +110,12 @@ class QuizListView(StandardizedResponseMixin, generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        return Quiz.objects.filter(is_active=True).annotate(
+        qs = Quiz.objects.filter(is_active=True, is_selected=True)
+        if not qs.exists():
+            qs = Quiz.objects.filter(is_active=True).order_by('-created_at')[:1]
+        return qs.annotate(
             question_count=Count('questions')
-        ).order_by('-created_at')[:1]
+        )
 
 
 class QuizDetailView(StandardizedResponseMixin, generics.RetrieveAPIView):

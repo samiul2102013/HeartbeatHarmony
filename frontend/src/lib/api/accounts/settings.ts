@@ -7,6 +7,7 @@ export const getAdminProfile = () =>
 
 export const updateAdminProfile = (data: {
   username?: string;
+  institute_name?: string;
   first_name?: string;
   last_name?: string;
   email?: string;
@@ -15,6 +16,7 @@ export const updateAdminProfile = (data: {
 }) => {
   const body = new FormData();
   if (data.username !== undefined) body.append("username", data.username);
+  if (data.institute_name !== undefined) body.append("institute_name", data.institute_name);
   if (data.first_name !== undefined) body.append("first_name", data.first_name);
   if (data.last_name !== undefined) body.append("last_name", data.last_name);
   if (data.email !== undefined) body.append("email", data.email);

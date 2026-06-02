@@ -1,6 +1,6 @@
 from django.utils import timezone
 from rest_framework import serializers
-from .models import Category, Habit, HabitCompletion, HabitTemplate, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT, BYPASS_PRO_LIMITS
+from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT, BYPASS_PRO_LIMITS
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -30,6 +30,8 @@ class HabitSerializer(serializers.ModelSerializer):
     schedule_time = serializers.TimeField(source='reminder_time', required=False, allow_null=True)
     reminder_time = serializers.TimeField(write_only=True, required=False, allow_null=True)
     is_completed_today = serializers.SerializerMethodField()
+    material_url = serializers.SerializerMethodField()
+    material_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Habit
@@ -37,9 +39,10 @@ class HabitSerializer(serializers.ModelSerializer):
             'id', 'category', 'category_detail',
             'activity_name', 'description', 'duration',
             'is_active', 'schedule_time', 'reminder_time', 'is_completed_today',
+            'material_url', 'material_type',
             'created_at', 'updated_at', 'template_id',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'category_detail', 'is_completed_today']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'category_detail', 'is_completed_today', 'material_url', 'material_type']
 
     def _completion_user(self):
         return self.context.get('resolved_user') or self.context.get('request').user
@@ -53,47 +56,21 @@ class HabitSerializer(serializers.ModelSerializer):
             user=user, habit=obj, completed_date=today
         ).exists()
 
-    def validate(self, attrs):
-        request = self.context['request']
-        user = self.context.get('resolved_user') or request.user
-        template_id = attrs.pop('template_id', None)
-        legacy_reminder_time = attrs.pop('reminder_time', None)
+    def get_material_url(self, obj):
+        material = getattr(obj, 'material', None)
+        if material is None:
+            return None
+        if material.material_type == 'video' and material.video_url:
+            return material.video_url
+        if material.file:
+            request = self.context.get('request')
+            file_url = material.file.url
+            return request.build_absolute_uri(file_url) if request is not None else file_url
+        return None
 
-        # Backward compatibility: accept `reminder_time` from old clients,
-        # but keep `schedule_time` as the canonical API field.
-        if legacy_reminder_time is not None and attrs.get('reminder_time') is None:
-            attrs['reminder_time'] = legacy_reminder_time
-
-        # If template_id provided, copy template data
-        if template_id and self.instance is None:
-            try:
-                template = HabitTemplate.objects.get(pk=template_id, is_active=True)
-                if Habit.objects.filter(
-                    user=user, source_template=template, is_active=True
-                ).exists():
-                    raise serializers.ValidationError(
-                        {'template_id': 'You already have this habit.'}
-                    )
-                attrs['category'] = template.category
-                attrs['activity_name'] = template.activity_name
-                attrs['description'] = template.description
-                attrs['duration'] = template.duration
-                attrs['source_template'] = template
-            except HabitTemplate.DoesNotExist:
-                raise serializers.ValidationError({'template_id': 'Template not found.'})
-        else:
-            # No template: require manual fields
-            if not attrs.get('activity_name') or not str(attrs.get('activity_name', '')).strip():
-                raise serializers.ValidationError({'activity_name': 'This field is required.'})
-
-        # Enforce free limit on create only (bypassed during testing)
-        if not BYPASS_PRO_LIMITS and self.instance is None and not user.is_pro:
-            active_count = Habit.objects.filter(user=user, is_active=True).count()
-            if active_count >= FREE_HABIT_LIMIT:
-                raise serializers.ValidationError(
-                    f'Free plan allows up to {FREE_HABIT_LIMIT} habits. Upgrade to Pro for unlimited habits.'
-                )
-        return attrs
+    def get_material_type(self, obj):
+        material = getattr(obj, 'material', None)
+        return material.material_type if material else None
 
     def create(self, validated_data):
         validated_data['user'] = self.context.get('resolved_user') or self.context['request'].user
@@ -106,13 +83,15 @@ class HabitSummarySerializer(serializers.ModelSerializer):
     category_icon = serializers.CharField(source='category.icon', read_only=True)
     schedule_time = serializers.TimeField(source='reminder_time', read_only=True)
     is_completed_today = serializers.SerializerMethodField()
+    material_url = serializers.SerializerMethodField()
+    material_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Habit
         fields = [
             'id', 'activity_name', 'description',
             'category_name', 'category_icon', 'duration', 'is_active', 'schedule_time',
-            'is_completed_today', 'created_at',
+            'is_completed_today', 'material_url', 'material_type', 'created_at',
         ]
 
     def _completion_user(self):
@@ -126,6 +105,22 @@ class HabitSummarySerializer(serializers.ModelSerializer):
         return HabitCompletion.objects.filter(
             user=user, habit=obj, completed_date=today
         ).exists()
+
+    def get_material_url(self, obj):
+        material = getattr(obj, 'material', None)
+        if material is None:
+            return None
+        if material.material_type == 'video' and material.video_url:
+            return material.video_url
+        if material.file:
+            request = self.context.get('request')
+            file_url = material.file.url
+            return request.build_absolute_uri(file_url) if request is not None else file_url
+        return None
+
+    def get_material_type(self, obj):
+        material = getattr(obj, 'material', None)
+        return material.material_type if material else None
 
     @staticmethod
     def from_template(template):
@@ -140,6 +135,8 @@ class HabitSummarySerializer(serializers.ModelSerializer):
             'is_active': template.is_active,
             'schedule_time': None,
             'is_completed_today': False,
+            'material_url': None,
+            'material_type': None,
             'created_at': template.created_at,
         }
 
@@ -219,6 +216,36 @@ class AdminHabitTemplateSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'category', 'category_name',
             'activity_name', 'description', 'duration',
+            'is_active', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class HabitMaterialSerializer(serializers.ModelSerializer):
+    habit_title = serializers.CharField(source='habit.activity_name', read_only=True)
+    habit_user = serializers.CharField(source='habit.user.username', read_only=True)
+    file = serializers.FileField(required=False, allow_null=True)
+
+    class Meta:
+        model = HabitMaterial
+        fields = [
+            'id', 'habit', 'habit_title', 'habit_user', 'title', 'description',
+            'material_type', 'file', 'video_url',
+            'is_active', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class AdminHabitMaterialSerializer(serializers.ModelSerializer):
+    habit_title = serializers.CharField(source='habit.activity_name', read_only=True)
+    habit_user = serializers.CharField(source='habit.user.username', read_only=True)
+    file = serializers.FileField(required=False, allow_null=True)
+
+    class Meta:
+        model = HabitMaterial
+        fields = [
+            'id', 'habit', 'habit_title', 'habit_user', 'title', 'description',
+            'material_type', 'file', 'video_url',
             'is_active', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']

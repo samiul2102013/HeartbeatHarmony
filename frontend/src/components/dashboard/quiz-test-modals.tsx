@@ -107,10 +107,18 @@ function alphabetLabel(index: number) {
 	return String.fromCharCode(97 + index);
 }
 
+const getTodayString = () => {
+	const today = new Date();
+	const yyyy = today.getFullYear();
+	const mm = String(today.getMonth() + 1).padStart(2, "0");
+	const dd = String(today.getDate()).padStart(2, "0");
+	return `${yyyy}-${mm}-${dd}`;
+};
+
 export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: CreateQuizModalProps) {
 	const [step, setStep] = useState<1 | 2>(1);
 	const [quizTitle, setQuizTitle] = useState("");
-	const [quizDate, setQuizDate] = useState("");
+	const [quizDate, setQuizDate] = useState(getTodayString());
 
 	const [topicId, setTopicId] = useState<string>("");
 	const [questionTitle, setQuestionTitle] = useState("");
@@ -129,7 +137,7 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 	const reset = () => {
 		setStep(1);
 		setQuizTitle("");
-		setQuizDate("");
+		setQuizDate(getTodayString());
 		setTopicId(topics[0]?.id ? String(topics[0].id) : "");
 		setQuestionTitle("");
 		setOptionText("");
@@ -299,7 +307,7 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 								<Input
 									type="date"
 									value={quizDate}
-									onChange={(e) => setQuizDate(e.target.value)}
+									disabled
 									className="h-11"
 								/>
 							</div>

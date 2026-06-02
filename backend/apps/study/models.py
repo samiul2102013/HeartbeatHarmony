@@ -84,11 +84,18 @@ class Quiz(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
     is_active = models.BooleanField(default=True)
+    is_selected = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'quizzes'
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if self.is_selected:
+            # Set all other quizzes to not selected
+            Quiz.objects.exclude(pk=self.pk).update(is_selected=False)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title

@@ -9,6 +9,7 @@ class UserAdmin(BaseUserAdmin):
 	list_display = (
 		'id',
 		'username',
+		'institute_name',
 		'email',
 		'role',
 		'plan',
@@ -17,5 +18,5 @@ class UserAdmin(BaseUserAdmin):
 		'is_active',
 	)
 	list_filter = ('role', 'plan', 'email_verified', 'is_staff', 'is_active')
-	search_fields = ('username', 'email', 'first_name', 'last_name', 'phone_number')
+	search_fields = ('username', 'institute_name', 'email', 'first_name', 'last_name', 'phone_number')
 

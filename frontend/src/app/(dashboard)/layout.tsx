@@ -42,7 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     getAdminProfile()
       .then((data) => {
         if (!mounted) return;
-        const name = [data?.first_name, data?.last_name].filter(Boolean).join(" ") || data?.username || "";
+        const name = [data?.first_name, data?.last_name].filter(Boolean).join(" ") || data?.institute_name || data?.username || "";
         setHeaderUser({ name, image: data?.avatar || undefined });
       })
       .catch(() => {
@@ -97,6 +97,7 @@ function SidebarNav() {
     { label: "Mood Scoring", href: "/mood-scoring", icon: Smile },
     { label: "Study Materials", href: "/study-materials", icon: BookOpen },
     { label: "Subject Uploads", href: "/subject-uploads", icon: FileText },
+    { label: "Material under habit", href: "/habit-materials", icon: BookOpen },
     { label: "Quiz Test", href: "/quiz-test", icon: ClipboardList },
     { label: "Pricing", href: "/pricing", icon: CircleDollarSign },
     { label: "Settings", href: "/settings", icon: Settings },

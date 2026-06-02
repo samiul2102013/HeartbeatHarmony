@@ -42,6 +42,8 @@ export function EditHabitTemplateModal({ open, onOpenChange, categories, initial
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const selectedCategory = categories.find((c) => String(c.id) === category);
+
   useEffect(() => {
     if (initial) {
       setCategory(String(initial.category));
@@ -101,7 +103,7 @@ export function EditHabitTemplateModal({ open, onOpenChange, categories, initial
         <div className="space-y-4">
           <ModalField label="Category">
             <Select value={category} onValueChange={(v) => setCategory(v ?? "")}>
-              <SelectTrigger className="h-11 text-sm">
+              <SelectTrigger className="h-11 w-full text-sm">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>

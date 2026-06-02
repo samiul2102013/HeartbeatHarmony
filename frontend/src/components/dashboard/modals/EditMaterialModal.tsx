@@ -32,6 +32,8 @@ export function EditMaterialModal({ open, onOpenChange, topics, material, onSubm
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const selectedTopic = topics.find((t) => String(t.id) === topicId);
+
   useEffect(() => {
     if (material) {
       setTitle(material.title);
@@ -88,7 +90,7 @@ export function EditMaterialModal({ open, onOpenChange, topics, material, onSubm
 
           <ModalField label="Topic">
             <Select value={topicId} onValueChange={(v) => setTopicId(v ?? "")}>
-              <SelectTrigger className="h-11 text-sm">
+              <SelectTrigger className="h-11 w-full text-sm">
                 <SelectValue placeholder="Select topic" />
               </SelectTrigger>
               <SelectContent>

@@ -13,8 +13,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8005:8005"
     env_file:
       - ./backend/.env
     environment:
@@ -24,12 +22,40 @@ services:
     restart: unless-stopped
     networks:
       - hartbeat-network
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
 
+  hartbeat-frontend:
+    container_name: hartbeat-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - hartbeat-network
 
-      
+  hartbeat-nginx:
+    container_name: hartbeat-nginx
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./backend/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/static:ro
+      - media_volume:/media:ro
+    depends_on:
+      - hartbeat-backend
+      - hartbeat-frontend
+    restart: unless-stopped
+    networks:
+      - hartbeat-network
 
 volumes:
   redis_data:
+  static_volume:
+  media_volume:
 
 networks:
   hartbeat-network:

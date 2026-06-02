@@ -12,6 +12,7 @@ export type QuizPayload = {
   title: string;
   description?: string;
   is_active: boolean;
+  is_selected?: boolean;
 };
  
 const extractData = (res: any) => res?.data ?? res;
@@ -44,6 +45,7 @@ export type StudyQuiz = {
   title: string;
   description?: string;
   is_active: boolean;
+  is_selected?: boolean;
   created_at: string;
   questions?: StudyQuestion[];
 };

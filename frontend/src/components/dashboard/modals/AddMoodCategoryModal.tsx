@@ -39,20 +39,28 @@ export function AddMoodCategoryModal({ open, onOpenChange, onSubmit }: AddMoodCa
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith(".svg") && file.type !== "image/svg+xml") {
-      setError("Please choose an SVG file.");
+    // Accept any image format. Reject only non-image files.
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file (PNG, JPG, SVG, WebP, GIF).");
       event.target.value = "";
       return;
     }
 
     try {
-      const content = await file.text();
-      setEmoji(content);
+      // For SVG, keep the old behavior of storing the markup text in `emoji`
+      // so old backends/clients still work. For raster images, leave `emoji`
+      // empty — the file is uploaded as `svg` and the backend stores it.
+      if (file.type === "image/svg+xml") {
+        const content = await file.text();
+        setEmoji(content);
+      } else {
+        setEmoji("");
+      }
       setEmojiFile(file);
       setEmojiFileName(file.name);
       setError(null);
     } catch {
-      setError("Unable to read the SVG file.");
+      setError("Unable to read the image file.");
       event.target.value = "";
     }
   };
@@ -87,11 +95,11 @@ export function AddMoodCategoryModal({ open, onOpenChange, onSubmit }: AddMoodCa
             <ModalField label="Name">
               <Input placeholder="Enter name" value={name} onChange={(e) => setName(e.target.value)} className="h-11" />
             </ModalField>
-            <ModalField label="SVG">
+            <ModalField label="Image">
               <label className="flex h-11 cursor-pointer items-center justify-between gap-3 rounded-md border border-dashed border-border px-3 text-sm text-muted-foreground transition-colors hover:bg-muted/40">
-                <span className="truncate">{emojiFileName || "Choose SVG file"}</span>
+                <span className="truncate">{emojiFileName || "Choose image file"}</span>
                 <span className="shrink-0 rounded bg-muted px-2 py-1 text-xs font-medium text-foreground">Browse</span>
-                <input type="file" accept=".svg,image/svg+xml" className="hidden" onChange={handleSvgFileChange} />
+                <input type="file" accept="image/*" className="hidden" onChange={handleSvgFileChange} />
               </label>
             </ModalField>
           </div>
