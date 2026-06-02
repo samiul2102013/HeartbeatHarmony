@@ -97,7 +97,7 @@ function SidebarNav() {
     { label: "Mood Scoring", href: "/mood-scoring", icon: Smile },
     { label: "Study Materials", href: "/study-materials", icon: BookOpen },
     { label: "Subject Uploads", href: "/subject-uploads", icon: FileText },
-    { label: "Material under habit", href: "/habit-materials", icon: BookOpen },
+    { label: "Material Under Habit", href: "/habit-materials", icon: BookOpen },
     { label: "Quiz Test", href: "/quiz-test", icon: ClipboardList },
     { label: "Pricing", href: "/pricing", icon: CircleDollarSign },
     { label: "Settings", href: "/settings", icon: Settings },
