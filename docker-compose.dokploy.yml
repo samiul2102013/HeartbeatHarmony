@@ -42,7 +42,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=postgresql://hartbeat:HartbeatDB%402026@hartbeat-postgres:5432/hartbeat_db
       - REDIS_URL=redis://hartbeat-redis:6379/0
-      - ALLOWED_HOSTS=${API_DOMAIN},localhost,127.0.0.1,10.0.1.0/24,172.18.0.0/16
+      - ALLOWED_HOSTS=*
       - CORS_ORIGINS=https://${FRONTEND_DOMAIN}
       - CSRF_TRUSTED_ORIGINS=https://${API_DOMAIN},https://${FRONTEND_DOMAIN}
       - FRONTEND_URL=https://${FRONTEND_DOMAIN}
@@ -79,6 +79,7 @@ services:
       # Health check endpoint
       - "traefik.http.services.backend.loadbalancer.healthcheck.path=/admin/login/"
       - "traefik.http.services.backend.loadbalancer.healthcheck.interval=10s"
+      - "traefik.http.services.backend.loadbalancer.healthcheck.hostname=${API_DOMAIN}"
 
   frontend:
     container_name: hartbeat-frontend
