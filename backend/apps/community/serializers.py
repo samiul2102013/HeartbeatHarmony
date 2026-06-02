@@ -55,4 +55,4 @@ class UserListSerializer(serializers.ModelSerializer):
     """For DM user picker — list of other users."""
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'avatar']
+        fields = ['id', 'username', 'institute_name', 'first_name', 'last_name', 'avatar']
