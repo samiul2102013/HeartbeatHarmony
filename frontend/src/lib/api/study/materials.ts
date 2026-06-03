@@ -38,6 +38,7 @@ export const deleteMaterial = (id: number) =>
 export type AdminMaterial = {
   id: number;
   topic: number;
+  topic_title?: string;
   title: string;
   material_type: "pdf" | "text" | "video";
   is_active: boolean;

@@ -433,6 +433,24 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
     def perform_create(self, serializer):
         user = _resolve_user(self.request)
         habit = serializer.validated_data.get('habit')
+        habit_template = serializer.validated_data.pop('habit_template', None)
+
+        if habit_template:
+            habit = Habit.objects.create(
+                user=user,
+                category=habit_template.category,
+                activity_name=habit_template.activity_name,
+                description=habit_template.description,
+                duration=habit_template.duration,
+                source_template=habit_template,
+                is_active=True,
+            )
+
+        if not habit:
+            raise serializers.ValidationError(
+                {'habit': 'A habit or habit_template must be provided.'}
+            )
+
         if not (user.is_staff or getattr(user, 'role', None) == 'admin') and habit.user_id != user.id:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('You can only add materials to your own habits.')
@@ -440,7 +458,7 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
             raise serializers.ValidationError(
                 {'habit': 'This habit already has a material. Edit the existing one instead.'}
             )
-        serializer.save()
+        serializer.save(habit=habit)
 
 
 class HabitMaterialDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):

@@ -27,13 +27,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  AdminHabit,
   AdminHabitMaterial,
+  HabitTemplate,
   createHabitMaterial,
   removeHabitMaterial,
   editHabitMaterial,
   listHabitMaterials,
-  listHabits,
+  listHabitTemplates,
 } from "@/lib/index";
 
 type MaterialRow = {
@@ -77,14 +77,14 @@ function mapMaterial(material: AdminHabitMaterial): MaterialRow {
 }
 
 function buildFormData(data: {
-  habit: number;
+  habit_template: number;
   title: string;
   material_type: string;
   file?: File;
   video_url?: string;
 }) {
   const formData = new FormData();
-  formData.append("habit", String(data.habit));
+  formData.append("habit_template", String(data.habit_template));
   formData.append("title", data.title);
   formData.append("description", "");
   formData.append("material_type", data.material_type);
@@ -103,7 +103,7 @@ export default function HabitMaterialsPage() {
   const [editingMaterial, setEditingMaterial] = useState<MaterialRow | null>(null);
   const [rawMaterials, setRawMaterials] = useState<AdminHabitMaterial[]>([]);
   const [materials, setMaterials] = useState<MaterialRow[]>([]);
-  const [habits, setHabits] = useState<AdminHabit[]>([]);
+  const [habits, setHabits] = useState<HabitTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,12 +113,12 @@ export default function HabitMaterialsPage() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [materialsResponse, habitsResponse] = await Promise.all([listHabitMaterials(), listHabits()]);
+        const [materialsResponse, habitsResponse] = await Promise.all([listHabitMaterials(), listHabitTemplates()]);
         if (!mounted) return;
         const raw = normalizeResponse<AdminHabitMaterial>(materialsResponse);
         setRawMaterials(raw);
         setMaterials(raw.map(mapMaterial));
-        setHabits(normalizeResponse<AdminHabit>(habitsResponse));
+        setHabits(normalizeResponse<HabitTemplate>(habitsResponse));
       } catch (err) {
         if (!mounted) return;
         setError(err instanceof Error ? err.message : "Unable to load habit materials");
@@ -140,7 +140,7 @@ export default function HabitMaterialsPage() {
   );
 
   const handleCreate = async (data: {
-    habit: number;
+    habit_template: number;
     title: string;
     material_type: string;
     file?: File;
@@ -154,18 +154,31 @@ export default function HabitMaterialsPage() {
 
   const handleEdit = async (data: {
     id: number;
-    habit: number;
     title: string;
     material_type: string;
     file?: File;
     video_url?: string;
   }) => {
-    const response = await editHabitMaterial(data.id, buildFormData(data));
-    const updated = (response as any)?.data ?? response;
-    setRawMaterials((prev) => prev.map((item) => (item.id === data.id ? (updated as AdminHabitMaterial) : item)));
-    setMaterials((prev) => prev.map((item) => (item.id === data.id ? mapMaterial(updated as AdminHabitMaterial) : item)));
-    setEditingMaterial(null);
-    setEditModalOpen(false);
+    try {
+      setError(null);
+      const raw = rawMaterials.find((item) => item.id === data.id);
+      const formData = new FormData();
+      if (raw) formData.append("habit", String(raw.habit));
+      formData.append("title", data.title);
+      formData.append("description", "");
+      formData.append("material_type", data.material_type);
+      formData.append("video_url", data.video_url ?? "");
+      formData.append("is_active", "true");
+      if (data.file) formData.append("file", data.file);
+      const response = await editHabitMaterial(data.id, formData);
+      const updated = (response as any)?.data ?? response;
+      setRawMaterials((prev) => prev.map((item) => (item.id === data.id ? (updated as AdminHabitMaterial) : item)));
+      setMaterials((prev) => prev.map((item) => (item.id === data.id ? mapMaterial(updated as AdminHabitMaterial) : item)));
+      setEditingMaterial(null);
+      setEditModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update habit material");
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -183,7 +196,6 @@ export default function HabitMaterialsPage() {
   const habitOptions = habits.map((habit) => ({
     id: habit.id,
     activity_name: habit.activity_name,
-    user_username: habit.user_username,
   }));
 
   return (
@@ -274,12 +286,16 @@ export default function HabitMaterialsPage() {
           if (!value) setEditingMaterial(null);
         }}
         habits={habitOptions}
-        material={editingMaterial ? {
-          id: editingMaterial.id,
-          title: editingMaterial.title,
-          material_type: editingMaterial.type,
-          habitId: rawMaterials.find((item) => item.id === editingMaterial.id)?.habit ?? 0,
-        } : null}
+        material={editingMaterial ? (() => {
+          const raw = rawMaterials.find((item) => item.id === editingMaterial.id);
+          return {
+            id: editingMaterial.id,
+            title: editingMaterial.title,
+            material_type: editingMaterial.type,
+            habitId: raw?.habit ?? 0,
+            habitTitle: raw?.habit_title ?? editingMaterial.habit,
+          };
+        })() : null}
         onSubmit={handleEdit}
       />
     </div>

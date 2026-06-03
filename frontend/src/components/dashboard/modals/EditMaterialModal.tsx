@@ -20,6 +20,7 @@ type EditMaterialModalProps = {
     title: string;
     type: string;
     topicId: number;
+    topicTitle?: string;
   } | null;
   onSubmit?: (data: { id: number; title: string; type: string; topicId: number; pdf?: File }) => void | Promise<void>;
 };
@@ -91,7 +92,13 @@ export function EditMaterialModal({ open, onOpenChange, topics, material, onSubm
           <ModalField label="Topic">
             <Select value={topicId} onValueChange={(v) => setTopicId(v ?? "")}>
               <SelectTrigger className="h-11 w-full text-sm">
-                <SelectValue placeholder="Select topic" />
+                <SelectValue placeholder="Select topic">
+                  {selectedTopic ? (
+                    <span>{selectedTopic.title}</span>
+                  ) : material?.topicTitle ? (
+                    <span>{material.topicTitle}</span>
+                  ) : undefined}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {topics.map((t) => (

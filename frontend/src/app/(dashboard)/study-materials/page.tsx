@@ -24,6 +24,7 @@ import {
 
 type MaterialRow = {
   id: number;
+  topic: string;
   title: string;
   type: "PDF" | "Video" | "Text";
   date: string;
@@ -46,6 +47,7 @@ function mapType(type: string | null | undefined): MaterialRow["type"] {
 function mapMaterial(material: AdminMaterial): MaterialRow {
   return {
     id: material.id,
+    topic: material.topic_title || "Uncategorized",
     title: material.title,
     type: mapType(material.material_type),
     date: new Date(material.created_at).toLocaleDateString(),
@@ -190,6 +192,7 @@ export default function StudyMaterials() {
         <Table>
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent" style={{ backgroundColor: "rgba(209,61,61,0.06)" }}>
+              <TableHead className="pl-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Topic</TableHead>
               <TableHead className="pl-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Title</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</TableHead>
@@ -199,16 +202,17 @@ export default function StudyMaterials() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-12 text-center text-sm text-muted-foreground">Loading materials...</TableCell>
+                <TableCell colSpan={5} className="py-12 text-center text-sm text-muted-foreground">Loading materials...</TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-12 text-center text-sm text-muted-foreground">No materials found.</TableCell>
+                <TableCell colSpan={5} className="py-12 text-center text-sm text-muted-foreground">No materials found.</TableCell>
               </TableRow>
             ) : (
               filtered.map((material) => (
                 <TableRow key={material.id} className="border-border transition-colors hover:bg-muted/40">
-                  <TableCell className="py-3.5 pl-5 text-sm font-medium text-foreground">{material.title}</TableCell>
+                  <TableCell className="py-3.5 pl-5 text-sm text-muted-foreground">{material.topic}</TableCell>
+                  <TableCell className="py-3.5 text-sm font-medium text-foreground">{material.title}</TableCell>
                   <TableCell className="py-3.5">
                     <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${TYPE_COLORS[material.type]}`}>
                       {material.type}
@@ -246,7 +250,7 @@ export default function StudyMaterials() {
         open={editModalOpen}
         onOpenChange={(v) => { if (!v) setEditingMaterial(null); setEditModalOpen(v); }}
         topics={topics.map((t) => ({ id: t.id, title: (t as any).title || (t as any).name || "Untitled" }))}
-        material={editingMaterial ? { id: editingMaterial.id, title: editingMaterial.title, type: editingMaterial.type, topicId: rawMaterials.find((m) => m.id === editingMaterial.id)?.topic ?? 0 } : null}
+        material={editingMaterial ? (() => { const raw = rawMaterials.find((m) => m.id === editingMaterial.id); return { id: editingMaterial.id, title: editingMaterial.title, type: editingMaterial.type, topicId: raw?.topic ?? 0, topicTitle: raw?.topic_title ?? "" }; })() : null}
         onSubmit={handleEditMaterial}
       />
     </div>

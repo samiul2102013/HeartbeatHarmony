@@ -240,11 +240,18 @@ class AdminHabitMaterialSerializer(serializers.ModelSerializer):
     habit_title = serializers.CharField(source='habit.activity_name', read_only=True)
     habit_user = serializers.CharField(source='habit.user.username', read_only=True)
     file = serializers.FileField(required=False, allow_null=True)
+    habit_template = serializers.PrimaryKeyRelatedField(
+        queryset=HabitTemplate.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = HabitMaterial
         fields = [
-            'id', 'habit', 'habit_title', 'habit_user', 'title', 'description',
+            'id', 'habit', 'habit_title', 'habit_user', 'habit_template',
+            'title', 'description',
             'material_type', 'file', 'video_url',
             'is_active', 'created_at', 'updated_at',
         ]

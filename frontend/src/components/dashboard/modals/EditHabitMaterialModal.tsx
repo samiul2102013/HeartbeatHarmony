@@ -21,10 +21,10 @@ type EditHabitMaterialModalProps = {
     title: string;
     material_type: string;
     habitId: number;
+    habitTitle?: string;
   } | null;
   onSubmit?: (data: {
     id: number;
-    habit: number;
     title: string;
     material_type: string;
     file?: File;
@@ -32,18 +32,14 @@ type EditHabitMaterialModalProps = {
 };
 
 export function EditHabitMaterialModal({ open, onOpenChange, habits, material, onSubmit }: EditHabitMaterialModalProps) {
-  const [habitId, setHabitId] = useState<string>("");
   const [title, setTitle] = useState("");
   const [type, setType] = useState("PDF");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const selectedHabit = habits.find((h) => String(h.id) === habitId);
-
   useEffect(() => {
     if (material) {
-      setHabitId(String(material.habitId));
       setTitle(material.title);
       const mType = (material.material_type || "PDF").toUpperCase();
       setType(mType === "VIDEO" || mType === "PDF" ? mType : "PDF");
@@ -63,10 +59,6 @@ export function EditHabitMaterialModal({ open, onOpenChange, habits, material, o
       setError("Material title is required.");
       return;
     }
-    if (!habitId) {
-      setError("Please select a habit.");
-      return;
-    }
 
     setSaving(true);
     setError(null);
@@ -74,7 +66,6 @@ export function EditHabitMaterialModal({ open, onOpenChange, habits, material, o
     try {
       await onSubmit?.({
         id: material.id,
-        habit: Number(habitId),
         title: nextTitle,
         material_type: type.toLowerCase(),
         file: file ?? undefined,
@@ -97,34 +88,9 @@ export function EditHabitMaterialModal({ open, onOpenChange, habits, material, o
 
         <div className="space-y-4">
           <ModalField label="Habit">
-            <Select value={habitId} onValueChange={(v) => setHabitId(v ?? "")}>
-              <SelectTrigger className="h-auto min-h-11 text-sm py-2 [&_[data-slot=select-value]]:line-clamp-none [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:break-words">
-                <SelectValue placeholder="Select habit">
-                  {selectedHabit ? (
-                    <span className="block whitespace-normal break-words">
-                      {selectedHabit.activity_name}
-                      {selectedHabit.user_username ? ` • ${selectedHabit.user_username}` : ""}
-                    </span>
-                  ) : undefined}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false} className="min-w-[28rem] max-w-[40rem]">
-                {habits.map((habit) => (
-                  <SelectItem
-                    key={habit.id}
-                    value={String(habit.id)}
-                    className="[&_span]:whitespace-normal [&_span]:break-words py-2"
-                  >
-                    <span className="block whitespace-normal break-words">
-                      <span className="font-medium">{habit.activity_name}</span>
-                      {habit.user_username ? (
-                        <span className="text-muted-foreground"> • {habit.user_username}</span>
-                      ) : ""}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex h-11 items-center rounded-md border border-border bg-muted/30 px-3 text-sm text-foreground">
+              {material?.habitTitle || "Unknown habit"}
+            </div>
           </ModalField>
 
           <ModalField label="Title">
