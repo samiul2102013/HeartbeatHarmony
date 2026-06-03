@@ -36,7 +36,6 @@ export type TopicOption = {
 
 export type QuizPayload = {
 	title: string;
-	date: string;
 	type: string;
 	topicId?: number;
 	questions: QuizQuestion[];
@@ -107,19 +106,9 @@ function alphabetLabel(index: number) {
 	return String.fromCharCode(97 + index);
 }
 
-const getTodayString = () => {
-	const today = new Date();
-	const yyyy = today.getFullYear();
-	const mm = String(today.getMonth() + 1).padStart(2, "0");
-	const dd = String(today.getDate()).padStart(2, "0");
-	return `${yyyy}-${mm}-${dd}`;
-};
-
 export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: CreateQuizModalProps) {
 	const [step, setStep] = useState<1 | 2>(1);
 	const [quizTitle, setQuizTitle] = useState("");
-	const [quizDate, setQuizDate] = useState(getTodayString());
-
 	const [topicId, setTopicId] = useState<string>("");
 	const [questionTitle, setQuestionTitle] = useState("");
 	const [optionText, setOptionText] = useState("");
@@ -137,7 +126,6 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 	const reset = () => {
 		setStep(1);
 		setQuizTitle("");
-		setQuizDate(getTodayString());
 		setTopicId(topics[0]?.id ? String(topics[0].id) : "");
 		setQuestionTitle("");
 		setOptionText("");
@@ -259,10 +247,9 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 		cancelEditQuestion();
 	};
 	const submitQuiz = () => {
-		if (!quizTitle.trim() || !quizDate || questions.length === 0) return;
+		if (!quizTitle.trim() || questions.length === 0) return;
 		onSubmit?.({
 			title: quizTitle.trim(),
-			date: quizDate,
 			type: "Question Set",
 			topicId: selectedTopic?.id,
 			questions,
@@ -271,7 +258,7 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 		onOpenChange(false);
 	};
 
-	const canProceed = quizTitle.trim().length > 0 && quizDate.length > 0;
+	const canProceed = quizTitle.trim().length > 0;
 	const canAddQuestion = questionTitle.trim().length > 0 && currentOptions.length >= 2;
 
 	return (
@@ -292,22 +279,13 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 
 				{step === 1 ? (
 					<div>
-						<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 gap-4">
 							<div className="space-y-1.5">
 								<Label className="px-0 text-sm font-semibold">Online Test Title</Label>
 								<Input
 									placeholder="Enter title"
 									value={quizTitle}
 									onChange={(e) => setQuizTitle(e.target.value)}
-									className="h-11"
-								/>
-							</div>
-							<div className="space-y-1.5">
-								<Label className="px-0 text-sm font-semibold">Quiz Date</Label>
-								<Input
-									type="date"
-									value={quizDate}
-									disabled
 									className="h-11"
 								/>
 							</div>
@@ -330,7 +308,7 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 							<Label className="px-0 text-sm font-semibold">Subject Name</Label>
 							  <Select value={topicId} onValueChange={(value) => setTopicId(value ?? "") }>
 								<SelectTrigger className="h-11 w-full">
-									<SelectValue placeholder="Select subject" />
+									<SelectValue placeholder="Select subject">{topics.find((t) => String(t.id) === topicId)?.title || "Select subject"}</SelectValue>
 								</SelectTrigger>
 								<SelectContent>
 									{topics.map((t) => (
