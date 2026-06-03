@@ -240,6 +240,11 @@ class AdminHabitMaterialSerializer(serializers.ModelSerializer):
     habit_title = serializers.CharField(source='habit.activity_name', read_only=True)
     habit_user = serializers.CharField(source='habit.user.username', read_only=True)
     file = serializers.FileField(required=False, allow_null=True)
+    habit = serializers.PrimaryKeyRelatedField(
+        queryset=Habit.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     habit_template = serializers.PrimaryKeyRelatedField(
         queryset=HabitTemplate.objects.all(),
         write_only=True,
