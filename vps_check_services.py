@@ -1,27 +1,20 @@
 import paramiko
 
-client = paramiko.SSHClient()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect('2.24.115.93', username='root', password='HartbeatWellness@Portia123')
+c = paramiko.SSHClient()
+c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+c.connect('2.24.115.93', username='root', password='HartbeatWellness@Portia123')
 
-# Check how Dokploy deployed our services
-commands = [
-    'docker service ls 2>/dev/null | grep -i "hartbeat\|stack"',
-    # Check if services are Docker Swarm services or regular containers
-    'docker ps --filter name=hartbeat --format "{{.Names}} {{.Image}}"',
-    # Check labels on the containers
-    'docker inspect hartbeat-backend --format "{{json .Config.Labels}}" 2>/dev/null | head -200',
-    'docker inspect hartbeat-frontend --format "{{json .Config.Labels}}" 2>/dev/null | head -200',
-]
+# Check what services are running
+stdin, stdout, stderr = c.exec_command("docker service ls 2>&1")
+out = stdout.read().decode()
+print("Docker services:", out[:500])
 
-for i, cmd in enumerate(commands):
-    stdin, stdout, stderr = client.exec_command(cmd)
-    out = stdout.read().decode('utf-8', errors='ignore').strip()
-    err = stderr.read().decode('utf-8', errors='ignore').strip()
-    print(f"=== {i+1} ===")
-    print(out[:2000] if out else "(empty)")
-    if err:
-        print(f"[ERR] {err[:300]}")
-    print()
+stdin2, stdout2, stderr2 = c.exec_command("docker compose ls 2>&1")
+out2 = stdout2.read().decode()
+print("Compose projects:", out2[:500])
 
-client.close()
+stdin3, stdout3, stderr3 = c.exec_command("ls /root/hartbeat-harmony/docker-compose* 2>&1")
+out3 = stdout3.read().decode()
+print("Compose files:", out3[:500])
+
+c.close()

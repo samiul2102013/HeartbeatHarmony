@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { Menu } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { clearAdminSession } from "@/lib/index";
 import {
@@ -18,9 +19,10 @@ type HeaderUser = {
 
 type HeaderProps = {
   user?: HeaderUser;
+  onToggleMobileNav?: () => void;
 };
 
-export function Header({ user }: HeaderProps) {
+export function Header({ user, onToggleMobileNav }: HeaderProps) {
   const router = useRouter();
 
   const handleLogout = () => {
@@ -34,8 +36,16 @@ export function Header({ user }: HeaderProps) {
     <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 shadow-sm">
       <div className="flex items-center justify-between h-24 px-6">
 
-        {/* Logo */}
-        <div className="flex items-center w-64">
+        {/* Mobile menu + Logo */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onToggleMobileNav}
+            className="md:hidden p-2 rounded-lg hover:bg-muted transition-colors"
+            aria-label="Toggle navigation"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          <div className="flex items-center w-56 sm:w-64">
           <Image
             src="/hartwellness.png"
             alt="Hart Wellness Logo"
@@ -45,6 +55,7 @@ export function Header({ user }: HeaderProps) {
             style={{ width: "auto", height: "80px" }}
             className="object-contain"
           />
+        </div>
         </div>
 
         {/* Profile */}

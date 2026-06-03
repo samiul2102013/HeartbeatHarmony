@@ -15,12 +15,14 @@ import {
   FileText,
   ClipboardList,
   CircleDollarSign,
-  LogOut
+  LogOut,
+  Menu
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Header } from "@/components/dashboard/header";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -28,6 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [headerUser, setHeaderUser] = useState<{ name?: string; image?: string }>({});
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -72,18 +75,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-white">
-      <Header user={headerUser} />
+      <Header user={headerUser} onToggleMobileNav={() => setMobileNavOpen(true)} />
       <div className="flex pt-24">
         <aside className="hidden md:block fixed top-24 left-0 h-[calc(100vh-96px)] w-64 border-r border-gray-100 bg-white">
           <SidebarNav />
         </aside>
         <main className="flex-1 md:ml-64 bg-white min-h-[calc(100vh-96px)]">{children}</main>
       </div>
+
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent side="left" className="w-72 p-0">
+          <SidebarNav onNavigate={() => setMobileNavOpen(false)} />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
 
-function SidebarNav() {
+function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     const pathname = usePathname();
     const router = useRouter();
 
@@ -114,6 +123,7 @@ function SidebarNav() {
                         <Link
                             key={item.href}
                             href={item.href}
+                            onClick={onNavigate}
                             className={cn(
                                 "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-sm font-medium",
                                 isActive 
@@ -130,6 +140,7 @@ function SidebarNav() {
 
             <button
               onClick={() => {
+                onNavigate?.();
                 clearAdminSession();
                 router.push("/signin");
               }}
