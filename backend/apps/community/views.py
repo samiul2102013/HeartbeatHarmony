@@ -29,7 +29,7 @@ class CommunityMessageHistoryView(StandardizedResponseMixin, generics.ListAPIVie
     pagination_class = CommunityPagination
 
     def get_queryset(self):
-        return CommunityMessage.objects.select_related('sender').order_by('created_at')
+        return CommunityMessage.objects.select_related('sender').order_by('-created_at')
 
 
 class CommunityMessageCreateView(StandardizedResponseMixin, APIView):
