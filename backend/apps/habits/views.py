@@ -436,15 +436,23 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
         habit_template = serializer.validated_data.pop('habit_template', None)
 
         if habit_template:
-            habit = Habit.objects.create(
-                user=user,
-                category=habit_template.category,
-                activity_name=habit_template.activity_name,
-                description=habit_template.description,
-                duration=habit_template.duration,
-                source_template=habit_template,
-                is_active=True,
-            )
+            target_habits = list(Habit.objects.filter(source_template=habit_template))
+            if not target_habits:
+                target_habits = [Habit.objects.create(
+                    user=user,
+                    category=habit_template.category,
+                    activity_name=habit_template.activity_name,
+                    description=habit_template.description,
+                    duration=habit_template.duration,
+                    source_template=habit_template,
+                    is_active=True,
+                )]
+            for h in target_habits:
+                HabitMaterial.objects.update_or_create(
+                    habit=h,
+                    defaults=serializer.validated_data,
+                )
+            return
 
         if not habit:
             raise serializers.ValidationError(
@@ -454,11 +462,11 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
         if not (user.is_staff or getattr(user, 'role', None) == 'admin') and habit.user_id != user.id:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('You can only add materials to your own habits.')
-        if HabitMaterial.objects.filter(habit=habit).exists():
-            raise serializers.ValidationError(
-                {'habit': 'This habit already has a material. Edit the existing one instead.'}
-            )
-        serializer.save(habit=habit)
+
+        HabitMaterial.objects.update_or_create(
+            habit=habit,
+            defaults=serializer.validated_data,
+        )
 
 
 class HabitMaterialDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):

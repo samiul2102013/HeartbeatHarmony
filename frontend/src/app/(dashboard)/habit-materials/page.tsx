@@ -203,6 +203,7 @@ export default function HabitMaterialsPage() {
   const habitOptions = habits.map((habit) => ({
     id: habit.id,
     activity_name: habit.activity_name,
+    user_username: (habit as any).user_username,
   }));
 
   return (
