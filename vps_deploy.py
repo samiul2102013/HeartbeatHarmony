@@ -5,11 +5,9 @@ c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 c.connect('2.24.115.93', username='root', password='HartbeatWellness@Portia123')
 
 commands = [
-    "cd /root/hartbeat-harmony && git pull origin main",
-    "cd /root/hartbeat-harmony && docker compose -p hartbeatstack-hartbeatstack-buv5uf build backend",
-    "cd /root/hartbeat-harmony && docker compose -p hartbeatstack-hartbeatstack-buv5uf up -d backend",
-    "cd /root/hartbeat-harmony && docker compose -p hartbeatstack-hartbeatstack-buv5uf build frontend",
-    "cd /root/hartbeat-harmony && docker compose -p hartbeatstack-hartbeatstack-buv5uf up -d frontend",
+    "cd /etc/dokploy/compose/hartbeatstack-hartbeatstack-buv5uf/code && git fetch --force origin && git reset --hard origin/main",
+    "cd /etc/dokploy/compose/hartbeatstack-hartbeatstack-buv5uf/code && docker compose -f docker-compose.dokploy.yml build --no-cache frontend",
+    "cd /etc/dokploy/compose/hartbeatstack-hartbeatstack-buv5uf/code && docker compose -f docker-compose.dokploy.yml up -d frontend",
 ]
 
 for cmd in commands:
