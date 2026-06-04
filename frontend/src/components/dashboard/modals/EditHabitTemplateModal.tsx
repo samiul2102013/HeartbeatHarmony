@@ -104,7 +104,7 @@ export function EditHabitTemplateModal({ open, onOpenChange, categories, initial
           <ModalField label="Category">
             <Select value={category} onValueChange={(v) => setCategory(v ?? "")}>
               <SelectTrigger className="h-11 w-full text-sm">
-                <SelectValue placeholder="Select category" />
+                <SelectValue placeholder="Select category">{selectedCategory ? <span>{selectedCategory.name}</span> : undefined}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => (

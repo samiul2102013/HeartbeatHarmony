@@ -90,7 +90,7 @@ export function AddMaterialModal({ open, onOpenChange, topics, onSubmit }: AddMa
           <ModalField label="Topic">
             <Select value={topicId} onValueChange={(v) => setTopicId(v ?? "")}>
               <SelectTrigger className="h-11 w-full text-sm">
-                <SelectValue placeholder="Select topic" />
+                <SelectValue placeholder="Select topic">{selectedTopic ? <span>{selectedTopic.title}</span> : undefined}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {topics.map((t) => (

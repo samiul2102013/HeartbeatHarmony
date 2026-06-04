@@ -123,6 +123,9 @@ export default function MoodCategoriesPage() {
     if (data.emojiFile) {
       formData.append("svg", data.emojiFile);
     }
+    if (data.emoji) {
+      formData.append("emoji", data.emoji);
+    }
     formData.append("score", String(data.score));
     formData.append("is_active", "true");
     await createMood(formData);
@@ -134,6 +137,9 @@ export default function MoodCategoriesPage() {
     formData.append("name", updated.name);
     if (updated.emojiFile) {
       formData.append("svg", updated.emojiFile);
+    }
+    if (updated.emoji) {
+      formData.append("emoji", updated.emoji);
     }
     formData.append("score", String(updated.score));
     formData.append("is_active", updated.status === "Active" ? "true" : "false");
