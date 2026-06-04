@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AdminHabit,
   AdminHabitMaterial,
   HabitTemplate,
   createHabitMaterial,
@@ -34,6 +35,7 @@ import {
   editHabitMaterial,
   listHabitMaterials,
   listHabitTemplates,
+  listHabits,
 } from "@/lib/index";
 
 type MaterialRow = {
@@ -103,7 +105,7 @@ export default function HabitMaterialsPage() {
   const [editingMaterial, setEditingMaterial] = useState<MaterialRow | null>(null);
   const [rawMaterials, setRawMaterials] = useState<AdminHabitMaterial[]>([]);
   const [materials, setMaterials] = useState<MaterialRow[]>([]);
-  const [habits, setHabits] = useState<HabitTemplate[]>([]);
+  const [habits, setHabits] = useState<(HabitTemplate | AdminHabit)[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,12 +115,14 @@ export default function HabitMaterialsPage() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [materialsResponse, habitsResponse] = await Promise.all([listHabitMaterials(), listHabitTemplates()]);
+        const [materialsResponse, habitsResponse, userHabitsResponse] = await Promise.all([listHabitMaterials(), listHabitTemplates(), listHabits()]);
         if (!mounted) return;
         const raw = normalizeResponse<AdminHabitMaterial>(materialsResponse);
         setRawMaterials(raw);
         setMaterials(raw.map(mapMaterial));
-        setHabits(normalizeResponse<HabitTemplate>(habitsResponse));
+        const templates = normalizeResponse<HabitTemplate>(habitsResponse);
+        const userHabits = normalizeResponse<AdminHabit>(userHabitsResponse);
+        setHabits([...templates, ...userHabits]);
       } catch (err) {
         if (!mounted) return;
         setError(err instanceof Error ? err.message : "Unable to load habit materials");

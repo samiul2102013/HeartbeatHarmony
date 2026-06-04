@@ -6,6 +6,8 @@ c.connect('2.24.115.93', username='root', password='HartbeatWellness@Portia123')
 
 commands = [
     "cd /etc/dokploy/compose/hartbeatstack-hartbeatstack-buv5uf/code && git fetch --force origin && git reset --hard origin/main",
+    "cd /etc/dokploy/compose/hartbeatstack-hartbeatstack-buv5uf/code && docker compose -f docker-compose.dokploy.yml build --no-cache backend",
+    "cd /etc/dokploy/compose/hartbeatstack-hartbeatstack-buv5uf/code && docker compose -f docker-compose.dokploy.yml up -d backend",
     "cd /etc/dokploy/compose/hartbeatstack-hartbeatstack-buv5uf/code && docker compose -f docker-compose.dokploy.yml build --no-cache frontend",
     "cd /etc/dokploy/compose/hartbeatstack-hartbeatstack-buv5uf/code && docker compose -f docker-compose.dokploy.yml up -d frontend",
 ]
