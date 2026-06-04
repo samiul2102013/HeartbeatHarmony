@@ -51,6 +51,7 @@ class CommunityMessageCreateView(StandardizedResponseMixin, APIView):
             msg.message_type = serializer.validated_data['message_type']
             msg.save(update_fields=['message_type'])
 
+        services.broadcast_community_message(msg, request.user)
         data = CommunityMessageSerializer(msg).data
         return success_response(
             data=data,

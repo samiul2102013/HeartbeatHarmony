@@ -1,6 +1,7 @@
 import socketio
 import asyncio
 import urllib.parse
+from datetime import datetime
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import TokenError
 from channels.db import database_sync_to_async
@@ -182,10 +183,18 @@ async def message(sid, data):
 
     try:
         if room == 'community':
-            msg = await _save_community_msg(user_info['id'], content)
             await sio.emit(
                 'chat_message',
-                _community_payload(msg, user_info),
+                {
+                    'room': 'community',
+                    'sender_id': user_info['id'],
+                    'sender_username': user_info['username'],
+                    'sender_avatar': user_info.get('avatar'),
+                    'content': content,
+                    'file': None,
+                    'message_type': 'text',
+                    'created_at': datetime.utcnow().isoformat(),
+                },
                 room=COMMUNITY_GROUP,
             )
         elif room == 'dm':
