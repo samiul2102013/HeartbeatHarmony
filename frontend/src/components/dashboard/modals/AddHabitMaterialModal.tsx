@@ -17,7 +17,8 @@ type AddHabitMaterialModalProps = {
   onOpenChange: (value: boolean) => void;
   habits: HabitOption[];
   onSubmit?: (data: {
-    habit_template: number;
+    habit?: number;
+    habit_template?: number;
     title: string;
     material_type: string;
     file?: File;
@@ -68,8 +69,9 @@ export function AddHabitMaterialModal({ open, onOpenChange, habits, onSubmit }: 
     setError(null);
 
     try {
+      const isUserHabit = !!selectedHabit?.user_username;
       await onSubmit?.({
-        habit_template: Number(habitId),
+        ...(isUserHabit ? { habit: Number(habitId) } : { habit_template: Number(habitId) }),
         title: nextTitle,
         material_type: type.toLowerCase(),
         file: file ?? undefined,

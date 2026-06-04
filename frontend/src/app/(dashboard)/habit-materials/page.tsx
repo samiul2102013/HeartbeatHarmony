@@ -79,14 +79,16 @@ function mapMaterial(material: AdminHabitMaterial): MaterialRow {
 }
 
 function buildFormData(data: {
-  habit_template: number;
+  habit?: number;
+  habit_template?: number;
   title: string;
   material_type: string;
   file?: File;
   video_url?: string;
 }) {
   const formData = new FormData();
-  formData.append("habit_template", String(data.habit_template));
+  if (data.habit) formData.append("habit", String(data.habit));
+  if (data.habit_template) formData.append("habit_template", String(data.habit_template));
   formData.append("title", data.title);
   formData.append("description", "");
   formData.append("material_type", data.material_type);
@@ -144,7 +146,8 @@ export default function HabitMaterialsPage() {
   );
 
   const handleCreate = async (data: {
-    habit_template: number;
+    habit?: number;
+    habit_template?: number;
     title: string;
     material_type: string;
     file?: File;
