@@ -114,7 +114,6 @@ class DMThreadView(StandardizedResponseMixin, APIView):
         except ValueError as exc:
             return error_response(str(exc), status_code=status.HTTP_400_BAD_REQUEST)
 
-        services.broadcast_direct_message(msg, request.user, int(user_id))
         data = DirectMessageSerializer(msg).data
         return success_response(
             data=data,
