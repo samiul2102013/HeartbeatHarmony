@@ -65,6 +65,19 @@ services:
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+
+  nginx:
+    container_name: hartbeat-nginx
+    image: nginx:alpine
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - dokploy-network
+    volumes:
+      - ./backend/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`${API_DOMAIN}`)"
@@ -72,11 +85,9 @@ services:
       - "traefik.http.routers.backend.tls.certResolver=letsencrypt"
       - "traefik.http.routers.backend.service=backend"
       - "traefik.http.routers.backend.priority=10"
-      - "traefik.http.services.backend.loadbalancer.server.port=8005"
+      - "traefik.http.services.backend.loadbalancer.server.port=80"
       - "traefik.http.routers.backend.middlewares=backend-ws"
-      # WebSocket headers
       - "traefik.http.middlewares.backend-ws.headers.customRequestHeaders.X-Forwarded-Proto=https"
-      # Health check endpoint
       - "traefik.http.services.backend.loadbalancer.healthcheck.path=/admin/login/"
       - "traefik.http.services.backend.loadbalancer.healthcheck.interval=10s"
       - "traefik.http.services.backend.loadbalancer.healthcheck.hostname=${API_DOMAIN}"
