@@ -162,6 +162,7 @@ WHITENOISE_MANIFEST_STRICT = False
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8005').rstrip('/')
 
 # Cloudflare R2 / S3-compatible media storage (optional, falls back to local storage)
 R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')

@@ -21,10 +21,11 @@ COMMUNITY_GROUP = 'heartbeat_community'
 
 
 def _user_info_from_model(user):
+    from .services import _absolute_url
     return {
         'id': user.id,
         'username': user.username,
-        'avatar': user.avatar.url if user.avatar else None,
+        'avatar': _absolute_url(user.avatar.url if user.avatar else None),
     }
 
 
@@ -139,14 +140,15 @@ async def disconnect(sid):
 
 
 def _community_payload(msg, user_info):
+    from .services import _absolute_url
     return {
         'room': 'community',
         'id': msg.id,
         'sender_id': user_info['id'],
         'sender_username': user_info['username'],
-        'sender_avatar': user_info.get('avatar'),
+        'sender_avatar': _absolute_url(user_info.get('avatar')),
         'content': msg.content,
-        'file': msg.file.url if msg.file else None,
+        'file': _absolute_url(msg.file.url if msg.file else None),
         'message_type': msg.message_type,
         'created_at': msg.created_at.isoformat(),
     }

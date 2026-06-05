@@ -1,11 +1,21 @@
 """Shared helpers for saving and broadcasting community chat messages."""
 
+from django.conf import settings
 from apps.accounts.models import User
 from .models import CommunityMessage, DirectMessage
 
 
+def _absolute_url(path):
+    if not path:
+        return None
+    if path.startswith(('http://', 'https://', 'ftp://')):
+        return path
+    base = settings.API_BASE_URL.rstrip('/')
+    return f"{base}/{path.lstrip('/')}"
+
+
 def avatar_url(user):
-    return user.avatar.url if user.avatar else None
+    return _absolute_url(user.avatar.url if user.avatar else None)
 
 
 def dm_room_name(user_id, other_id):
@@ -21,7 +31,7 @@ def community_message_payload(msg, user):
         'sender_username': user.username,
         'sender_avatar': avatar_url(user),
         'content': msg.content,
-        'file': msg.file.url if msg.file else None,
+        'file': _absolute_url(msg.file.url if msg.file else None),
         'message_type': msg.message_type,
         'created_at': msg.created_at.isoformat(),
     }
