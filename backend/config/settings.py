@@ -162,3 +162,33 @@ WHITENOISE_MANIFEST_STRICT = False
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Cloudflare R2 / S3-compatible media storage (optional, falls back to local storage)
+R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')
+R2_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY')
+R2_ENDPOINT_URL = os.getenv('R2_ENDPOINT_URL')
+R2_BUCKET_NAME = os.getenv('R2_BUCKET_NAME', 'hartbeat-harmony-media')
+R2_CUSTOM_DOMAIN = os.getenv('R2_CUSTOM_DOMAIN', '').strip()
+
+if R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL:
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {
+                "access_key": R2_ACCESS_KEY_ID,
+                "secret_key": R2_SECRET_ACCESS_KEY,
+                "bucket_name": R2_BUCKET_NAME,
+                "endpoint_url": R2_ENDPOINT_URL,
+                "region_name": "auto",
+                "file_overwrite": False,
+                "querystring_auth": False,
+                "custom_domain": R2_CUSTOM_DOMAIN or None,
+                "object_parameters": {
+                    "CacheControl": "public, max-age=31536000, immutable",
+                },
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
