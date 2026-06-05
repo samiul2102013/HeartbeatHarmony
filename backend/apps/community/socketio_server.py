@@ -42,25 +42,6 @@ def get_user_from_token(token_key):
 
 
 @database_sync_to_async
-def _save_community_msg(user_id, content):
-    from apps.accounts.models import User
-    from .services import create_community_message
-    user = User.objects.get(pk=user_id)
-    return create_community_message(user, content)
-
-
-@database_sync_to_async
-def _save_dm(user_id, content, recipient_id):
-    from apps.accounts.models import User
-    from .services import create_direct_message
-    try:
-        user = User.objects.get(pk=user_id)
-        return create_direct_message(user, int(recipient_id), content)
-    except ValueError:
-        return None
-
-
-@database_sync_to_async
 def _mark_messages_read(user_id, other_id):
     from apps.accounts.models import User
     from .services import mark_dm_read
@@ -154,22 +135,6 @@ def _community_payload(msg, user_info):
     }
 
 
-def _dm_payload(msg, user_info, recipient_id):
-    from .services import dm_room_name
-    return {
-        'room': 'dm',
-        'room_name': dm_room_name(user_info['id'], recipient_id),
-        'id': msg.id,
-        'sender_id': user_info['id'],
-        'sender_username': user_info['username'],
-        'receiver_id': recipient_id,
-        'content': msg.content,
-        'file': None,
-        'message_type': 'text',
-        'created_at': msg.created_at.isoformat(),
-    }
-
-
 @sio.event
 async def message(sid, data):
     user_info = _sid_to_user.get(sid)
@@ -207,12 +172,19 @@ async def message(sid, data):
                 return
 
             recipient_id = int(recipient_id)
-            msg = await _save_dm(user_info['id'], content, recipient_id)
-            if not msg:
-                await sio.emit('error', {'message': 'Recipient not found'}, to=sid)
-                return
-
-            payload = _dm_payload(msg, user_info, recipient_id)
+            from .services import dm_room_name
+            payload = {
+                'room': 'dm',
+                'room_name': dm_room_name(user_info['id'], recipient_id),
+                'sender_id': user_info['id'],
+                'sender_username': user_info['username'],
+                'sender_avatar': user_info.get('avatar'),
+                'receiver_id': recipient_id,
+                'content': content,
+                'file': file_url or None,
+                'message_type': data.get('message_type', 'text'),
+                'created_at': datetime.utcnow().isoformat(),
+            }
             await sio.emit('direct_message', payload, room=f"user_{user_info['id']}")
             await sio.emit('direct_message', payload, room=f"user_{recipient_id}")
         else:
