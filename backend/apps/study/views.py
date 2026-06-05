@@ -458,8 +458,9 @@ class AdminStudyMaterialListCreateView(StandardizedResponseMixin, generics.ListC
             ) for user in users
         ]
         Notification.objects.bulk_create(notifications)
-        
-        broadcast_event_sync('community', 'notification', {
+
+        from apps.community.socketio_server import COMMUNITY_GROUP
+        broadcast_event_sync(COMMUNITY_GROUP, 'notification', {
             'title': title,
             'message': message,
             'text': message,
@@ -505,8 +506,9 @@ class AdminQuizListCreateView(StandardizedResponseMixin, generics.ListCreateAPIV
             ) for user in users
         ]
         Notification.objects.bulk_create(notifications)
-        
-        broadcast_event_sync('community', 'notification', {
+
+        from apps.community.socketio_server import COMMUNITY_GROUP
+        broadcast_event_sync(COMMUNITY_GROUP, 'notification', {
             'title': title,
             'message': message,
             'text': message,
