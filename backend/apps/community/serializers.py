@@ -20,12 +20,13 @@ class CommunityMessageSerializer(serializers.ModelSerializer):
 
 
 class CommunityMessageCreateSerializer(serializers.Serializer):
-    content = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
+    content = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True, default='')
     message_type = serializers.ChoiceField(
         choices=CommunityMessage.MessageType.choices,
         required=False,
         default=CommunityMessage.MessageType.TEXT,
     )
+    file = serializers.FileField(required=False, allow_null=True)
 
 
 class DirectMessageSerializer(serializers.ModelSerializer):

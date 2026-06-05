@@ -40,9 +40,11 @@ class CommunityMessageCreateView(StandardizedResponseMixin, APIView):
         serializer = CommunityMessageCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
+            file = request.FILES.get('file')
             msg = services.create_community_message(
                 request.user,
-                serializer.validated_data['content'],
+                serializer.validated_data.get('content', ''),
+                file=file,
             )
         except ValueError as exc:
             return error_response(str(exc), status_code=status.HTTP_400_BAD_REQUEST)
@@ -52,7 +54,7 @@ class CommunityMessageCreateView(StandardizedResponseMixin, APIView):
             msg.save(update_fields=['message_type'])
 
         services.broadcast_community_message(msg, request.user)
-        data = CommunityMessageSerializer(msg).data
+        data = CommunityMessageSerializer(msg, context={'request': request}).data
         return success_response(
             data=data,
             message='Community message sent',

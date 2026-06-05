@@ -42,11 +42,15 @@ def direct_message_payload(msg, sender, recipient_id):
     }
 
 
-def create_community_message(user, content):
+def create_community_message(user, content, file=None):
     content = (content or '').strip()
-    if not content:
-        raise ValueError('Message content is required')
-    return CommunityMessage.objects.create(sender=user, content=content)
+    if not content and not file:
+        raise ValueError('Message content or file is required')
+    msg = CommunityMessage(sender=user, content=content)
+    if file:
+        msg.file = file
+    msg.save()
+    return msg
 
 
 def create_direct_message(user, recipient_id, content):
