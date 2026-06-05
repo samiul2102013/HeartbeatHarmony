@@ -99,7 +99,7 @@ class DMThreadView(StandardizedResponseMixin, APIView):
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(queryset, request, view=self)
-        serializer = DirectMessageSerializer(page, many=True)
+        serializer = DirectMessageSerializer(page, many=True, context={'request': request})
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request, user_id):
@@ -114,7 +114,7 @@ class DMThreadView(StandardizedResponseMixin, APIView):
         except ValueError as exc:
             return error_response(str(exc), status_code=status.HTTP_400_BAD_REQUEST)
 
-        data = DirectMessageSerializer(msg).data
+        data = DirectMessageSerializer(msg, context={'request': request}).data
         return success_response(
             data=data,
             message='Direct message sent',
