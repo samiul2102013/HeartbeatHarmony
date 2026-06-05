@@ -167,7 +167,7 @@ class MyConversationsView(StandardizedResponseMixin, APIView):
             ).count()
 
             conversations.append({
-                'user': UserListSerializer(other).data,
+                'user': UserListSerializer(other, context={'request': request}).data,
                 'last_message': last_msg.content if last_msg else '',
                 'last_message_at': last_msg.created_at if last_msg else None,
                 'unread_count': unread_count,
