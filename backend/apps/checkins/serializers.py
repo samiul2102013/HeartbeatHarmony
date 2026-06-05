@@ -17,14 +17,14 @@ def _abs_url(request, file_field):
 
 
 class MoodSerializer(serializers.ModelSerializer):
-    svg = serializers.SerializerMethodField()
-
     class Meta:
         model = Mood
         fields = ['id', 'name', 'emoji', 'svg', 'score', 'is_active']
 
-    def get_svg(self, obj):
-        return _abs_url(self.context.get('request'), obj.svg)
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['svg'] = _abs_url(self.context.get('request'), instance.svg)
+        return data
 
 
 class CheckInSerializer(serializers.ModelSerializer):
@@ -74,14 +74,14 @@ class CheckInSummarySerializer(serializers.ModelSerializer):
 # ── Admin serializers ─────────────────────────────────────────
 
 class AdminMoodSerializer(serializers.ModelSerializer):
-    svg = serializers.SerializerMethodField()
-
     class Meta:
         model = Mood
         fields = '__all__'
 
-    def get_svg(self, obj):
-        return _abs_url(self.context.get('request'), obj.svg)
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['svg'] = _abs_url(self.context.get('request'), instance.svg)
+        return data
 
     def to_internal_value(self, data):
         # Frontend may send the image file under 'emoji' or 'svg' key.

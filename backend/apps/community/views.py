@@ -95,7 +95,7 @@ class DMThreadView(StandardizedResponseMixin, APIView):
         queryset = DirectMessage.objects.filter(
             Q(sender=user, receiver_id=user_id) |
             Q(sender_id=user_id, receiver=user)
-        ).select_related('sender', 'receiver').order_by('created_at')
+        ).select_related('sender', 'receiver').order_by('-created_at')
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(queryset, request, view=self)
