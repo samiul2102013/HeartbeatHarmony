@@ -176,9 +176,10 @@ async def message(sid, data):
 
     room = data.get('room')
     content = data.get('content', '').strip()
+    file_url = data.get('file', '').strip()
 
-    if not content:
-        await sio.emit('error', {'message': 'Message content is required'}, to=sid)
+    if not content and not file_url:
+        await sio.emit('error', {'message': 'Message content or file is required'}, to=sid)
         return
 
     try:
@@ -191,8 +192,8 @@ async def message(sid, data):
                     'sender_username': user_info['username'],
                     'sender_avatar': user_info.get('avatar'),
                     'content': content,
-                    'file': None,
-                    'message_type': 'text',
+                    'file': file_url or None,
+                    'message_type': data.get('message_type', 'text'),
                     'created_at': datetime.utcnow().isoformat(),
                 },
                 room=COMMUNITY_GROUP,
