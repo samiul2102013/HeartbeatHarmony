@@ -1,0 +1,180 @@
+# ChargeSafe Ui Ux — Dashboard Screens Export
+## File: https://www.figma.com/design/O2wuL0VcAoTrZmtXURhGMj/ChargeSafe-Ui-Ux
+
+====================================================================
+## PROJECT OVERVIEW
+====================================================================
+- Project Name: ChargeSafe Ui Ux
+- Type: Disaster/emergency community mobile app
+- Platform: iOS (iPhone-style UI, bottom nav, status bar)
+- Canvas: "App Ui" (node 48:877)
+
+====================================================================
+## COMPONENTS & COMPONENT SETS
+====================================================================
+Components:
+  11:54   - HomeIndicator (Dark Mode=False)     [ComponentSet: 11:53 - HomeIndicator]
+  128:485 - 3D Avatars / 21
+  21:82   - Button                              [Generic button component]
+  64:1685 - Check box / Property 1=Frame 14     [ComponentSet: 64:1684 - Check box]
+  145:774 - Long BTN
+  442:461 - 3D Avatars / 7
+  589:101 - Left Text / Number=4                [ComponentSet: 589:24 - Left Text]
+  589:223 - Horizontal Line / Number=0          [ComponentSet: 589:118 - Horizontal Line]
+  745:874 - ConfigAndData-Pie-Don't remove!
+  770:1086 - 3D Avatars / 19
+  11:126  - home / Property 1=bold              [ComponentSet: 11:125 - home]
+  11:86   - wallet / Property 1=linear          [ComponentSet: 11:85 - wallet]
+  11:100  - Analysis / Property 1=linear        [ComponentSet: 11:99 - Analysis]
+  11:113  - user / Property 1=linear            [ComponentSet: 11:112 - user]
+
+Component Sets:
+  11:53  - HomeIndicator
+  64:1684 - Check box
+  589:24  - Left Text (© SnowUI)
+  589:118 - Horizontal Line (© SnowUI)
+  11:125  - home
+  11:85   - wallet
+  11:99   - Analysis
+  11:112  - user
+
+====================================================================
+## DASHBOARD SCREENS
+====================================================================
+
+### 1. Home Screen (node 134:619)
+Main user dashboard — bottom nav: Home (active), Map, Hub, Profile
+- Top Status Bar: 9:41, Cellular, Wifi, Battery
+- HomeIndicator (bottom bar indicator)
+- Assigned Hub header: 3D Avatar with green "safe" status dot, "ASSIGNED HUB" label, location pin + "Haining Road, Kingston 5, Jamaica"
+- Alert banner (amber): warning icon + "Active weather event — Kingston, Jamaica" / "Stay connected with your community hub"
+- "CHECK IN NOW" section: Two large buttons side-by-side
+  - "I Am Safe" (green/Safe fill, white text, checkmark icon, border-radius 69px)
+  - "Need Help" (red/Urgent fill, white text, SOS icon, border-radius 64px)
+- Map card (white, rounded 12px): Map Image (rectangle), location pin + "2 Hazards Near You", arrow icon, hazard map marker SVGs with shadow effects
+- Hub Resources card (white, rounded 12px):
+  - Header: "Hub Resources" + "OPEN" badge (green/Safe fill)
+  - Power row: battery icon, "Power" label, "85% Power Capacity" value
+  - Satellite Internet row: wifi icon, "Satellite Intenet" label, "Active" value (green)
+  - "Book Charging Slot" button (dashed border, blue text)
+- "Report a Hazard" link text
+- Hazard categories grid (2 rows):
+  - Row 1: Flooding (water icon), Blocked Road (road icon), Fallen Tree (tree icon)
+  - Row 2: Medical (cross icon), Fallen Utility Pole (pole icon), Fire (flame icon)
+    Each: white card with shadow, image + label
+- "Additional Hazards" card (white, rounded 12px): Collapsed Building, Power Line Down, Landslide, Other (each with circle-outline icon)
+- Bottom navigation bar (dark pill shape): focuses/Home (icon+label active), Map, Hub, Profile icons
+
+### 2. Safety Screen (node 207:628)
+Safety check-in dashboard — same bottom nav structure
+- Same top bar, HomeIndicator, assigned hub header, weather alert
+- "CHECK IN NOW" with "I Am Safe" (green) / "Need Help" (red SOS) buttons
+- Map card with "2 Hazards Near You"
+- Hub Resources with Power (85%) and Starlink (Active), "Book Charging Slot" button
+- "Report a Hazard" + hazard categories (Flooding, Blocked Road, Fallen Tree, Medical)
+- Bottom nav: Home, Map (active?), Hub, Profile
+
+### 3. Need Help Screen (node 207:859)
+Emergency check-in detail — bottom nav present
+- Same top bar, assigned hub, weather alert
+- Check-in buttons with descriptions:
+  - "I Am Safe" (green, rounded): "Share your status with the hub"
+  - "Need Help" (red SOS, rounded): "Request emergency Response"
+- Map card with hazards, Hub Resources card
+- "Report a Hazard" + hazard categories
+- Check In bottom sheet (modal):
+  - Title: "Check In"
+  - "Number of people with you": Stepper control (minus/1/plus) with circle indicators
+  - "Road Status near you": 3 segmented options — Passable, Blocked, Unknown
+  - "Medical Needs": 2 options — None, Need Medical Attention
+  - "Send Update" button (green/Safe fill)
+
+### 4. Hub Screen (node 441:167)
+Community hub dashboard — bottom nav: Home, Map, Hub (active), Profile
+- Same status bar, assigned hub header with 3D avatar, location
+- "ASSIGNED HUB" label, "COMMUNITY: NOT SET" subtitle
+- Check-in status area
+- "Emergency Alerts" section
+- "Hub Updates" section
+- "Road Status near you" + "Medical Needs" quick-select
+- Local Resident / Verified Responder info
+- "Number of people with you" stepper
+- "Special Medical Needs?" toggle/link
+
+### 5. Coordinator Hub (node 384:1463)
+Admin/coordinator dashboard — coordinator tools
+- "Coordinator Tools" header
+- Tool cards: "Update Hub Status", "Broadcast Message", "View All Check ins"
+- "Hub Resources" status: Power (85%), Starlink (Active)
+- "24 users currently here" stat
+- SOS emergency button
+- "Manage battery & Open Status" controls
+- "Hub Info" section
+
+### 6. Update Hub Status (node 384:1722)
+- "Hub Status" toggle: OPEN
+- "Capacity" slider/input
+- "Battery Level": 85%
+- "Send update to all checked in users" button
+
+### 7. Broadcast Message (node 390:1745)
+- "Broadcast Message" header
+- "Recipients: All residents at this hub (6 people)"
+- Message input field
+- Send button
+
+### 8. Hub Check-ins (node 384:2309)
+- Checked-in users list
+- "Share your status with the hub" prompt
+- Check-in action button
+
+### 9. Help Details (node 390:1319)
+- "HELP" status display
+- "Request Help Now" button
+- "Request emergency Response" action
+- "View Live Map" link
+
+### 10. Safe Details (node 390:1552)
+- "SAFE" status display
+
+====================================================================
+## DESIGN SYSTEM — COLORS
+====================================================================
+Themed Groups:
+  Blue:    blue-50, blue-300, blue-500
+  Dark:    dark-50, dark-100, dark-200, dark-300, dark-500
+  White:   white-500, white-600
+  Safe:    Green/Safe (semantic — used for "I Am Safe", OPEN status)
+  Urgent:  Red/Urgent (semantic — used for SOS, Need Help)
+  Main Typo, Subtitle, Highlghts, Bg, Warm Slate
+  main font, main font (21:70), main font (145:768)
+
+====================================================================
+## DESIGN SYSTEM — TYPOGRAPHY
+====================================================================
+Named Styles:
+  H2 bold, H3 bold, H4, H4 bold, H4 bold (11:14), H5 bold
+  Body1, Body1 bold, Body1 bold (11:18), Body1 bold (21:73), Body1 (11:17)
+  Body2, Body2 (11:19), Body2 bold, Body2 bold (11:20)
+  Caption1, Caption1 (11:21)
+  Medium/Medium-title-2
+  Regular/Regular-body-5, Regular/Regular-body-5 (21:87), Regular/Regular-title-2
+  Semibold/Semibold-title-3
+
+====================================================================
+## ICON SETS USED (dashboard)
+====================================================================
+ion:home, solar:map-point-linear, solar:battery-charge-linear,
+solar:medical-kit-linear, iconamoon:profile-thin, tdesign:location-filled,
+weui:arrow-outlined, circum:warning, clarity:battery-solid,
+streamline-plump:wifi-solid, ic:round-plus, lucide:minus,
+material-symbols-light:circle-outline
+
+====================================================================
+## KEY BEHAVIORAL NOTES (dashboard)
+====================================================================
+- Bottom Navigation: 4 tabs — Home, Map, Hub, Profile (active state highlighted)
+- Check-in flow: "I Am Safe" (green) / "Need Help" (red SOS) -> bottom sheet -> number of people, road status, medical needs -> "Send Update"
+- Coordinator tools: Update hub status (OPEN/CLOSED), battery/capacity, broadcast messages, view check-ins
+- Hub Resources card: Shows Power (85%) and Satellite Internet (Active/Starlink) status
+- Hazard map card: Shows "X Hazards Near You" with interactive map preview

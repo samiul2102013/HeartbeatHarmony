@@ -170,20 +170,14 @@ class CustomTokenObtainPairSerializer(serializers.Serializer):
 
         user = None
         if email:
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                if username:
-                    try:
-                        user = User.objects.get(username=username)
-                    except User.DoesNotExist:
-                        raise serializers.ValidationError('No account found with the provided email or username.')
-                else:
-                    raise serializers.ValidationError('No account found with the provided email.')
+            user = User.objects.filter(email=email).first()
+            if not user and username:
+                user = User.objects.filter(username=username).first()
+            if not user:
+                raise serializers.ValidationError('No account found with the provided email or username.')
         else:
-            try:
-                user = User.objects.get(username=username)
-            except User.DoesNotExist:
+            user = User.objects.filter(username=username).first()
+            if not user:
                 raise serializers.ValidationError('No account found with the provided username.')
 
         if username and email and user.username != username and user.email != email:
