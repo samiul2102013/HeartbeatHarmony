@@ -11,6 +11,7 @@ class User(AbstractUser):
         FREE = 'free', 'Free'
         PRO = 'pro', 'Pro'
 
+    email = models.EmailField(unique=True)
     institute_name = models.CharField(max_length=150, blank=True)
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.USER)
     plan = models.CharField(max_length=10, choices=Plan.choices, default=Plan.FREE)
