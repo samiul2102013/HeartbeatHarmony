@@ -45,7 +45,7 @@ export function Header({ user, onToggleMobileNav }: HeaderProps) {
           >
             <Menu className="h-6 w-6" />
           </button>
-          <div className="flex items-center w-56 sm:w-64">
+          <div className="flex items-center w-56 sm:w-64 cursor-pointer" onClick={() => router.push("/")}>
           <Image
             src="/hartwellness.png"
             alt="Hart Wellness Logo"
