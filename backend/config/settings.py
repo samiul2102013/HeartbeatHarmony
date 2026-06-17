@@ -40,6 +40,7 @@ LOCAL_APPS = [
     'apps.pricing',
     'apps.core',
     'apps.notifications',
+    'apps.iap',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -86,6 +87,9 @@ REST_FRAMEWORK = {
 
 # Disable APPEND_SLASH for REST API — allows requests without trailing slashes
 APPEND_SLASH = False
+
+# Apple App Store In-App Purchase
+APPLE_SHARED_SECRET = os.getenv('APPLE_SHARED_SECRET', '')
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),

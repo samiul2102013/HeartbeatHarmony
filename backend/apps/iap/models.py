@@ -1,0 +1,51 @@
+from django.db import models
+from django.conf import settings
+from django.utils import timezone
+
+
+class InAppPurchase(models.Model):
+    class Platform(models.TextChoices):
+        IOS = 'ios', 'iOS'
+        ANDROID = 'android', 'Android'
+
+    class PurchaseType(models.TextChoices):
+        SUBSCRIPTION = 'subscription', 'Subscription'
+        LIFETIME = 'lifetime', 'Lifetime'
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='iap_purchases'
+    )
+    platform = models.CharField(max_length=10, choices=Platform.choices)
+    product_id = models.CharField(max_length=255)
+    purchase_type = models.CharField(max_length=12, choices=PurchaseType.choices)
+    original_transaction_id = models.CharField(max_length=255, unique=True)
+    transaction_id = models.CharField(max_length=255)
+    purchase_date = models.DateTimeField()
+    expires_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    environment = models.CharField(max_length=20, default='Production')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'iap_purchases'
+        ordering = ['-purchase_date']
+
+    def __str__(self):
+        return f"{self.user.username} — {self.product_id} — {'active' if self.is_active else 'inactive'}"
+
+    @property
+    def is_expired(self):
+        if self.purchase_type == self.PurchaseType.LIFETIME:
+            return False
+        if self.expires_at and timezone.now() > self.expires_at:
+            return True
+        return False
+
+    def deactivate_if_expired(self):
+        if self.is_expired and self.is_active:
+            self.is_active = False
+            self.save(update_fields=['is_active'])
+            return True
+        return False
