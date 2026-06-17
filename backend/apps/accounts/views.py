@@ -9,6 +9,8 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 from .models import User
 from .serializers import (
@@ -85,6 +87,75 @@ class LoginView(StandardizedResponseMixin, APIView):
             'refresh': validated_data['refresh'],
             'access': validated_data['access'],
         })
+
+
+class GoogleLoginView(StandardizedResponseMixin, APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        id_token_str = request.data.get('id_token')
+        if not id_token_str:
+            return error_response('id_token is required.', status_code=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Verify Google ID token
+            id_info = id_token.verify_oauth2_token(
+                id_token_str,
+                google_requests.Request(),
+                clock_skew_in_seconds=10
+            )
+
+            # Extract user info
+            email = id_info['email'].lower().strip()
+            first_name = id_info.get('given_name', '')
+            last_name = id_info.get('family_name', '')
+            picture_url = id_info.get('picture', '')
+
+            # Check if user exists
+            user = User.objects.filter(email=email).first()
+
+            if not user:
+                # Generate username from email
+                base_username = email.split('@')[0]
+                username = base_username
+                counter = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+
+                # Create new user
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    email_verified=True
+                )
+                # Generate random password (user can set it later if needed)
+                user.set_unusable_password()
+                user.save()
+            else:
+                # Ensure email is verified
+                if not user.email_verified:
+                    user.email_verified = True
+                    user.save(update_fields=['email_verified'])
+
+            # Get JWT tokens
+            # We'll use CustomTokenObtainPairSerializer's _build_token_pair
+            # First, let's recreate the serializer to get the token method
+            temp_serializer = CustomTokenObtainPairSerializer()
+            token_data = temp_serializer._build_token_pair(user)
+
+            return success_response({
+                'user': UserProfileSerializer(user).data,
+                'refresh': token_data['refresh'],
+                'access': token_data['access'],
+            })
+
+        except ValueError as e:
+            logger.warning(f"Invalid Google token: {e}")
+            return error_response('Invalid Google token.', status_code=status.HTTP_400_BAD_REQUEST)
 
 
 class ProfileView(StandardizedResponseMixin, generics.RetrieveUpdateAPIView):
