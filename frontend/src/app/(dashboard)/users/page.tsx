@@ -122,25 +122,19 @@ export default function UserManagement() {
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const { data: users = [], isLoading, error, refetch } = useUsers();
+  const { data, isLoading, error, refetch } = useUsers({
+    page: currentPage,
+    search: searchTerm || undefined,
+  });
   const deleteMutation = useDeleteUser();
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
-  const filteredUsers = useMemo(
-    () => (users as AdminUser[])
-      .map(mapUser)
-      .filter(
-        (u) =>
-          (u.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (u.email || "").toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [searchTerm, users]
-  );
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const users = data?.users ?? [];
+  const metadata = data?.metadata ?? null;
+  const totalItems = metadata?.total_items ?? users.length;
+  const totalPages = metadata?.total_pages ?? Math.max(1, Math.ceil(users.length / ITEMS_PER_PAGE));
+  const paginatedUsers = useMemo(() => users.map(mapUser), [users]);
 
   const pageNumbers = useMemo(() => {
     const pages: (number | "…")[] = [];
@@ -184,7 +178,7 @@ export default function UserManagement() {
       <div>
         <h1 className="text-xl font-semibold text-foreground">User Management</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Manage and monitor your community of {(users as AdminUser[]).length} users.
+          Manage and monitor your community of {totalItems} users.
         </p>
       </div>
 
@@ -312,9 +306,9 @@ export default function UserManagement() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {filteredUsers.length === 0
+          {totalItems === 0
             ? "No results"
-            : `Showing ${startIndex + 1}–${Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)} of ${filteredUsers.length}`}
+            : `Showing ${(currentPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of ${totalItems}`}
         </p>
         <div className="flex items-center gap-1 min-w-[300px] justify-end">
           <Button variant="outline" size="icon" className="h-8 w-8"

@@ -424,7 +424,6 @@ class AdminUserListView(StandardizedResponseMixin, generics.ListAPIView):
     queryset = User.objects.all().order_by('-created_at')
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdminRole]
-    pagination_class = None
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['plan', 'is_active', 'role', 'email_verified']
     search_fields = ['username', 'institute_name', 'email', 'first_name', 'last_name']

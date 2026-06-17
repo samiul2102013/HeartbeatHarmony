@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from django.db.models import Avg, Count
 from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import OrderingFilter
+from rest_framework.filters import OrderingFilter, SearchFilter
 from .models import Mood, CheckIn
 from .serializers import (
     MoodSerializer, CheckInSerializer, CheckInSummarySerializer,
@@ -205,10 +205,10 @@ class AdminCheckInListView(StandardizedResponseMixin, generics.ListAPIView):
     queryset = CheckIn.objects.select_related('user', 'mood').order_by('-created_at')
     serializer_class = AdminCheckInSerializer
     permission_classes = [IsAdminRole]
-    pagination_class = None
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_fields = ['user', 'mood']
     ordering_fields = ['created_at', 'heart_balance_score']
+    search_fields = ['user__username', 'user__email', 'mood__name']
 
 
 class AdminCheckInDetailView(StandardizedResponseMixin, generics.RetrieveDestroyAPIView):

@@ -10,7 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { deleteCheckin, listCheckins, AdminCheckIn } from "@/lib/index";
+import { deleteCheckin, AdminCheckIn } from "@/lib/index";
+import { useCheckins, useDeleteCheckin } from "@/lib/api/checkins/hooks";
 import { CalendarDays, ChevronDown, Eye, Pencil, Search, Trash2 } from "lucide-react";
 import ViewCheckInDialog from "./veiw-checksin-dialog";
 import { useEffect, useMemo, useState } from "react";
@@ -71,49 +72,20 @@ function normalizeResponse<T>(res: any): T[] {
 export default function CheckIns() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [rows, setRows] = useState<CheckInRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [viewCheckIn, setViewCheckIn] =  useState<CheckInRow | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const { data, isLoading, error } = useCheckins({
+    page: currentPage,
+    search: searchTerm || undefined,
+  });
+  const deleteMutation = useDeleteCheckin();
 
-    const loadCheckIns = async () => {
-      try {
-        setLoading(true);
-        const response = await listCheckins();
-        if (!mounted) return;
-        setRows(normalizeResponse<AdminCheckIn>(response).map(mapCheckIn));
-      } catch (err) {
-        if (!mounted) return;
-        setError(err instanceof Error ? err.message : "Unable to load check-ins");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    void loadCheckIns();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const filteredCheckIns = useMemo(
-    () => rows.filter((row) => (row.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (row.mood || "").toLowerCase().includes(searchTerm.toLowerCase())),
-    [rows, searchTerm]
-  );
-
-  const totalPages = Math.ceil(filteredCheckIns.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedCheckIns = filteredCheckIns.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-  const handleDelete = async (id: number) => {
-    await deleteCheckin(id);
-    setRows((prev) => prev.filter((row) => row.id !== id));
-  };
+  const rows = data?.checkins ?? [];
+  const metadata = data?.metadata ?? null;
+  const totalItems = metadata?.total_items ?? rows.length;
+  const totalPages = metadata?.total_pages ?? Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
+  const paginatedCheckIns = useMemo(() => rows.map(mapCheckIn), [rows]);
 
   return (
     <div className="space-y-5 p-6">
@@ -122,7 +94,7 @@ export default function CheckIns() {
         <p className="mt-0.5 text-sm text-muted-foreground">Review live user reflections and wellness scores.</p>
       </div>
 
-      {error && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</div>}
+      {error && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error instanceof Error ? error.message : "Unable to load check-ins"}</div>}
 
       <div className="flex items-center justify-between gap-3">
         <div className="relative w-64">
@@ -136,7 +108,7 @@ export default function CheckIns() {
         </Button>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground shadow-sm">Loading check-ins...</div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm min-h-[520px]">
@@ -170,7 +142,7 @@ export default function CheckIns() {
                           <DropdownMenuItem className="cursor-pointer gap-2 text-sm" onClick={() => { setViewCheckIn(checkIn); setViewOpen(true); }}>
                             <Eye className="h-3.5 w-3.5 text-muted-foreground" /> View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="cursor-pointer gap-2 text-sm text-destructive focus:text-destructive" onClick={() => void handleDelete(checkIn.id)}>
+                          <DropdownMenuItem className="cursor-pointer gap-2 text-sm text-destructive focus:text-destructive" onClick={() => deleteMutation.mutate(checkIn.id)}>
                             <Trash2 className="h-3.5 w-3.5" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -186,7 +158,9 @@ export default function CheckIns() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, filteredCheckIns.length)} of {filteredCheckIns.length}
+          {totalItems === 0
+            ? "No results"
+            : `Showing ${(currentPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of ${totalItems}`}
         </p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1} className="h-8 text-xs">Previous</Button>

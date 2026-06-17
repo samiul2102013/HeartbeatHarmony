@@ -4,6 +4,7 @@ export type CheckinQuery = {
   user?: number;
   mood?: number;
   ordering?: "created_at" | "-created_at" | "heart_balance_score" | "-heart_balance_score";
+  search?: string;
   page?: number;
 };
  

@@ -1,13 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listUsers, deleteUser, type AdminUser } from "./users";
+import { listUsers, deleteUser, type AdminUser, type UserQuery } from "./users";
 
-export function useUsers() {
+export function useUsers(query?: UserQuery) {
   return useQuery({
-    queryKey: ["admin", "users"],
-    queryFn: () => listUsers(),
+    queryKey: ["admin", "users", query],
+    queryFn: () => listUsers(query),
     select: (res: any) => {
-      const source = res?.data ?? res?.results ?? res?.result ?? res ?? [];
-      return Array.isArray(source) ? source : (source?.results ?? []);
+      const items = res?.data ?? res?.results ?? res?.result ?? res ?? [];
+      return {
+        users: (Array.isArray(items) ? items : (items?.results ?? [])) as AdminUser[],
+        metadata: res?.metadata ?? null,
+      };
     },
   });
 }
