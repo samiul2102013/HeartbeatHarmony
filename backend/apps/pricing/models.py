@@ -11,12 +11,12 @@ class Plan(models.Model):
     name = models.CharField(max_length=100)               # e.g. "Pro Monthly"
     slug = models.SlugField(unique=True)                   # e.g. "pro-monthly"
     description = models.TextField(blank=True, default='')
-    price = models.DecimalField(max_digits=8, decimal_places=2)
+    price = models.DecimalField(max_digits=8, decimal_places=2, db_index=True)
     duration = models.CharField(
-        max_length=10, choices=Duration.choices, default=Duration.MONTHLY
+        max_length=10, choices=Duration.choices, default=Duration.MONTHLY, db_index=True
     )
-    is_active = models.BooleanField(default=True)
-    is_popular = models.BooleanField(default=False)        # Highlighted on pricing page
+    is_active = models.BooleanField(default=True, db_index=True)
+    is_popular = models.BooleanField(default=False, db_index=True)        # Highlighted on pricing page
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -33,7 +33,7 @@ class PlanFeature(models.Model):
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name='features')
     title = models.CharField(max_length=200)
     is_included = models.BooleanField(default=True)  # False = shown as ❌ (not included)
-    order = models.PositiveSmallIntegerField(default=0)
+    order = models.PositiveSmallIntegerField(default=0, db_index=True)
 
     class Meta:
         db_table = 'plan_features'
@@ -56,11 +56,11 @@ class Subscription(models.Model):
     )
     plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name='subscriptions')
     status = models.CharField(
-        max_length=10, choices=Status.choices, default=Status.ACTIVE
+        max_length=10, choices=Status.choices, default=Status.ACTIVE, db_index=True
     )
-    started_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField(null=True, blank=True)  # null = lifetime
-    cancelled_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)  # null = lifetime
+    cancelled_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = 'subscriptions'

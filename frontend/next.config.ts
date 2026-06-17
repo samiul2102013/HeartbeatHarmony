@@ -2,7 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
     images: {
-        unoptimized: true,
         remotePatterns: [
             {
                 protocol: "https",
@@ -23,10 +22,14 @@ const nextConfig: NextConfig = {
                 protocol: "https",
                 hostname: "res.cloudinary.com",
                 pathname: "/photo/**",
-            }
+            },
+            {
+                protocol: "https",
+                hostname: "api.heartbeatharmony.tech",
+                pathname: "/media/**",
+            },
         ],
-        
-        
+        formats: ['image/avif', 'image/webp'],
     },
     reactCompiler: true,
 };

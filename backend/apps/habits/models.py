@@ -13,7 +13,7 @@ class Category(models.Model):
     """Admin-managed habit categories (e.g. Fitness, Mindfulness, Sleep)."""
     name = models.CharField(max_length=100, unique=True)
     icon = models.CharField(max_length=10, blank=True, help_text="Emoji icon")
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -48,9 +48,9 @@ class Habit(models.Model):
     activity_name = models.CharField(max_length=150)
     description = models.TextField(blank=True, default='')
     duration = models.PositiveIntegerField(null=True, blank=True, help_text="Duration in minutes")
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     reminder_time = models.TimeField(null=True, blank=True, help_text="Scheduled time to perform this habit (e.g., 08:00)")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -87,8 +87,8 @@ class HabitTemplate(models.Model):
     activity_name = models.CharField(max_length=150)
     description = models.TextField(blank=True, default='')
     duration = models.PositiveIntegerField(help_text="Duration in minutes")
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -112,15 +112,15 @@ class HabitMaterial(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
     material_type = models.CharField(
-        max_length=10, choices=MaterialType.choices, default=MaterialType.PDF
+        max_length=10, choices=MaterialType.choices, default=MaterialType.PDF, db_index=True
     )
     file = models.FileField(
         upload_to='habits/materials/', null=True, blank=True,
         help_text='Upload material file (PDF or Video)'
     )
     video_url = models.URLField(blank=True, default='')
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

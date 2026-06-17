@@ -21,9 +21,10 @@ class CommunityMessage(models.Model):
     message_type = models.CharField(
         max_length=10,
         choices=MessageType.choices,
-        default=MessageType.TEXT
+        default=MessageType.TEXT,
+        db_index=True
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         db_table = 'community_messages'
@@ -46,8 +47,8 @@ class DirectMessage(models.Model):
         related_name='received_messages'
     )
     content = models.TextField()
-    is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         db_table = 'direct_messages'

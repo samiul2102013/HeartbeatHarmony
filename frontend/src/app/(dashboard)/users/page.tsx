@@ -15,7 +15,8 @@ import {
   DropdownMenu, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { listUsers, deleteUser, AdminUser, resolveUserAvatarUrl } from "@/lib/api/accounts/users";
+import { AdminUser, resolveUserAvatarUrl } from "@/lib/api/accounts/users";
+import { useUsers, useDeleteUser } from "@/lib/api/accounts/hooks";
 import {
   ChevronDown, ChevronLeft, ChevronRight,
   Eye, Pencil, Plus, Search, Trash2,
@@ -113,9 +114,6 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -123,58 +121,20 @@ export default function UserManagement() {
   const [viewOpen, setViewOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
-  function normalizeUsersResponse(res: any): AdminUser[] {
-    const source = res?.data ?? res?.results ?? res?.result ?? res ?? [];
-    return Array.isArray(source) ? source : (source?.results ?? []);
-  }
-
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await listUsers();
-      const normalizedUsers = normalizeUsersResponse(res);
-      setUsers(normalizedUsers.map(mapUser));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unable to load users";
-      setError(`❌ ${msg}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await listUsers();
-        const normalizedUsers = normalizeUsersResponse(res);
-        if (mounted) setUsers(normalizedUsers.map(mapUser));
-      } catch (err) {
-        if (mounted) {
-          const msg = err instanceof Error ? err.message : "Unable to load users";
-          setError(`❌ ${msg}`);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-    void load();
-    return () => { mounted = false; };
-  }, []);
+  const { data: users = [], isLoading, error, refetch } = useUsers();
+  const deleteMutation = useDeleteUser();
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
   const filteredUsers = useMemo(
-    () => users.filter(
-      (u) =>
-        (u.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (u.email || "").toLowerCase().includes(searchTerm.toLowerCase())
-    ),
+    () => (users as AdminUser[])
+      .map(mapUser)
+      .filter(
+        (u) =>
+          (u.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (u.email || "").toLowerCase().includes(searchTerm.toLowerCase())
+      ),
     [searchTerm, users]
   );
 
@@ -200,29 +160,22 @@ export default function UserManagement() {
     return pages;
   }, [currentPage, totalPages]);
 
-  // Optimistic update then re-fetch to sync with server
-  const handleEditSave = (updated: UserRow) => {
-    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-    void loadUsers();
+  const handleEditSave = (_updated: UserRow) => {
+    void refetch();
   };
 
-  const handleUserAdded = (newUser: AdminUser) => {
-    setUsers((prev) => [mapUser(newUser), ...prev]);
-    void loadUsers();
+  const handleUserAdded = (_newUser: AdminUser) => {
+    void refetch();
   };
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
-    setDeleting(true);
     try {
-      await deleteUser(deleteTarget.id);
-      setUsers((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+      await deleteMutation.mutateAsync(deleteTarget.id);
       setDeleteOpen(false);
       setDeleteTarget(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete user.");
-    } finally {
-      setDeleting(false);
+    } catch {
+      // error handled by mutation
     }
   };
 
@@ -231,13 +184,13 @@ export default function UserManagement() {
       <div>
         <h1 className="text-xl font-semibold text-foreground">User Management</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Manage and monitor your community of {users.length} users.
+          Manage and monitor your community of {(users as AdminUser[]).length} users.
         </p>
       </div>
 
       {error && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {error}
+          {error instanceof Error ? error.message : "Unable to load users"}
         </div>
       )}
 
@@ -273,7 +226,7 @@ export default function UserManagement() {
           </TableHeader>
 
           <TableBody>
-            {loading ? (
+            {isLoading ? (
               <TableRow>
                 <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
                   Loading users…
@@ -423,14 +376,14 @@ export default function UserManagement() {
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm"
               onClick={() => { setDeleteTarget(null); setDeleteOpen(false); }}
-              disabled={deleting}>
+              disabled={deleteMutation.isPending}>
               Cancel
             </Button>
             <Button size="sm"
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => void handleDeleteConfirm()}
-              disabled={deleting}>
-              {deleting ? "Deleting…" : "Delete"}
+              disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

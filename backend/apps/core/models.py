@@ -66,7 +66,7 @@ class ContentPage(models.Model):
 	slug = models.SlugField(unique=True, max_length=80)
 	title = models.CharField(max_length=150)
 	content = models.TextField()
-	is_active = models.BooleanField(default=True)
+	is_active = models.BooleanField(default=True, db_index=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 
@@ -86,8 +86,8 @@ class ContentPage(models.Model):
 class FAQ(models.Model):
 	question = models.CharField(max_length=255)
 	answer = models.TextField()
-	order = models.PositiveIntegerField(default=0)
-	is_active = models.BooleanField(default=True)
+	order = models.PositiveIntegerField(default=0, db_index=True)
+	is_active = models.BooleanField(default=True, db_index=True)
 
 	class Meta:
 		db_table = 'faqs'

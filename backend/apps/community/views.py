@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db.models import Q
+from django.db.models import Q, OuterRef, Subquery, Count
 from .models import CommunityMessage, DirectMessage
 from .serializers import (
     CommunityMessageSerializer,
@@ -150,33 +150,42 @@ class MyConversationsView(StandardizedResponseMixin, APIView):
         received_from = DirectMessage.objects.filter(receiver=user).values_list('sender_id', flat=True)
         contact_ids = set(list(sent_to) + list(received_from))
 
+        if not contact_ids:
+            return Response([])
+
+        # Fetch all contacts + latest message in 1 query using annotated subqueries
+        latest_content = DirectMessage.objects.filter(
+            Q(sender=user, receiver_id=OuterRef('id')) |
+            Q(sender_id=OuterRef('id'), receiver=user)
+        ).order_by('-created_at').values('content')[:1]
+
+        latest_created_at = DirectMessage.objects.filter(
+            Q(sender=user, receiver_id=OuterRef('id')) |
+            Q(sender_id=OuterRef('id'), receiver=user)
+        ).order_by('-created_at').values('created_at')[:1]
+
+        contacts = User.objects.filter(id__in=contact_ids).annotate(
+            last_message=Subquery(latest_content),
+            last_message_at=Subquery(latest_created_at),
+        )
+
+        # Aggregate unread counts in a single query
+        unread_qs = DirectMessage.objects.filter(
+            sender_id__in=contact_ids, receiver=user, is_read=False
+        ).values('sender_id').annotate(count=Count('id'))
+
+        unread_map = {item['sender_id']: item['count'] for item in unread_qs}
+
         conversations = []
-        for other_id in contact_ids:
-            other = User.objects.filter(id=other_id).first()
-            if not other:
-                continue
-
-            last_msg = DirectMessage.objects.filter(
-                Q(sender=user, receiver_id=other_id) |
-                Q(sender_id=other_id, receiver=user)
-            ).order_by('-created_at').first()
-
-            unread_count = DirectMessage.objects.filter(
-                sender_id=other_id, receiver=user, is_read=False
-            ).count()
-
+        for other in contacts:
             conversations.append({
                 'user': UserListSerializer(other, context={'request': request}).data,
-                'last_message': last_msg.content if last_msg else '',
-                'last_message_at': last_msg.created_at if last_msg else None,
-                'unread_count': unread_count,
+                'last_message': other.last_message or '',
+                'last_message_at': other.last_message_at,
+                'unread_count': unread_map.get(other.id, 0),
             })
 
-        # Sort by most recent
-        conversations.sort(
-            key=lambda x: x['last_message_at'] or '',
-            reverse=True
-        )
+        conversations.sort(key=lambda x: x['last_message_at'] or '', reverse=True)
         return Response(conversations)
 
 

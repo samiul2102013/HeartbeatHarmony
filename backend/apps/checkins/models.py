@@ -15,7 +15,7 @@ class Mood(models.Model):
         help_text="Base score contribution (1-10)",
         validators=[MinValueValidator(1), MaxValueValidator(10)]
     )
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -71,10 +71,10 @@ class CheckIn(models.Model):
 
     # Calculated score stored on save
     heart_balance_score = models.DecimalField(
-        max_digits=4, decimal_places=2, editable=False, default=0
+        max_digits=4, decimal_places=2, editable=False, default=0, db_index=True
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         db_table = 'checkins'

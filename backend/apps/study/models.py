@@ -9,8 +9,8 @@ class StudyTopic(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
     thumbnail = models.ImageField(upload_to='study/thumbnails/', null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         db_table = 'study_topics'
@@ -32,7 +32,7 @@ class StudyMaterial(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
     material_type = models.CharField(
-        max_length=10, choices=MaterialType.choices, default=MaterialType.PDF
+        max_length=10, choices=MaterialType.choices, default=MaterialType.PDF, db_index=True
     )
     file = models.FileField(
         upload_to='study/materials/', null=True, blank=True,
@@ -44,8 +44,8 @@ class StudyMaterial(models.Model):
     )
     video_url = models.URLField(blank=True, default='')
     content = models.TextField(blank=True, default='', help_text='Text content if type is text')
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -65,7 +65,7 @@ class UserMaterialProgress(models.Model):
     material = models.ForeignKey(
         StudyMaterial, on_delete=models.CASCADE, related_name='user_progress'
     )
-    is_completed = models.BooleanField(default=False)
+    is_completed = models.BooleanField(default=False, db_index=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -83,9 +83,9 @@ class Quiz(models.Model):
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
-    is_active = models.BooleanField(default=True)
-    is_selected = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    is_selected = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         db_table = 'quizzes'
@@ -121,7 +121,7 @@ class Question(models.Model):
         max_length=1,
         choices=[('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')]
     )
-    order = models.PositiveSmallIntegerField(default=0)
+    order = models.PositiveSmallIntegerField(default=0, db_index=True)
 
     class Meta:
         db_table = 'quiz_questions'
@@ -164,7 +164,7 @@ class QuizAttempt(models.Model):
     )
     score = models.PositiveSmallIntegerField(default=0)
     total_questions = models.PositiveSmallIntegerField(default=0)
-    completed_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         db_table = 'quiz_attempts'

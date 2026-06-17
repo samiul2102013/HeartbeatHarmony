@@ -1,5 +1,5 @@
 from django.utils import timezone
-from django.db.models import Count
+from django.db.models import Count, Q
 from datetime import timedelta
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -220,13 +220,15 @@ class AdminPricingStatsView(StandardizedResponseMixin, APIView):
         cancelled_subs = Subscription.objects.filter(status='cancelled').count()
 
         # Revenue per plan
+        plans = Plan.objects.filter(is_active=True).annotate(
+            active_subscribers=Count('subscriptions', filter=Q(subscriptions__status='active'))
+        )
         revenue_by_plan = []
-        for plan in Plan.objects.filter(is_active=True):
-            count = Subscription.objects.filter(plan=plan, status='active').count()
+        for plan in plans:
             revenue_by_plan.append({
                 'plan': plan.name,
-                'active_subscribers': count,
-                'monthly_revenue': float(plan.price) * count if plan.duration == 'monthly' else 0,
+                'active_subscribers': plan.active_subscribers,
+                'monthly_revenue': float(plan.price) * plan.active_subscribers if plan.duration == 'monthly' else 0,
             })
 
         return success_response({

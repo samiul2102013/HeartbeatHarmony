@@ -10,9 +10,9 @@ class Notification(models.Model):
     )
     title = models.CharField(max_length=255)
     message = models.TextField()
-    notification_type = models.CharField(max_length=50, default='system', help_text="e.g., 'system', 'habit', 'study'")
-    is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    notification_type = models.CharField(max_length=50, default='system', help_text="e.g., 'system', 'habit', 'study'", db_index=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         db_table = 'notifications'
