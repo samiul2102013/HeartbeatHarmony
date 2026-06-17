@@ -13,6 +13,7 @@ from .serializers import (
 )
 from apps.core.permissions import IsAdminRole
 from apps.core.response_utils import StandardizedResponseMixin, success_response
+from apps.core.image_utils import resize_image
 from django.utils import timezone
 import datetime
 from apps.accounts.models import User
@@ -172,12 +173,32 @@ class AdminMoodListCreateView(StandardizedResponseMixin, generics.ListCreateAPIV
     pagination_class = None
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    def perform_create(self, serializer):
+        data = self._resize_svg(serializer.validated_data)
+        serializer.save(**data)
+
+    def _resize_svg(self, data):
+        svg = data.get('svg')
+        if svg and hasattr(svg, 'read'):
+            processed = resize_image(svg, max_size=300, quality=85)
+            if processed:
+                data['svg'] = processed
+        return data
+
 
 class AdminMoodDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Mood.objects.all()
     serializer_class = AdminMoodSerializer
     permission_classes = [IsAdminRole]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def perform_update(self, serializer):
+        svg = serializer.validated_data.get('svg')
+        if svg and hasattr(svg, 'read'):
+            processed = resize_image(svg, max_size=300, quality=85)
+            if processed:
+                serializer.validated_data['svg'] = processed
+        serializer.save()
 
 
 class AdminCheckInListView(StandardizedResponseMixin, generics.ListAPIView):

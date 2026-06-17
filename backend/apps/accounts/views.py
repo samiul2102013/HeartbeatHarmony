@@ -24,6 +24,7 @@ from .utils import (
 )
 from apps.core.permissions import IsAdminRole
 from apps.core.response_utils import StandardizedResponseMixin, success_response, error_response
+from apps.core.image_utils import resize_image
 from django.conf import settings
 import logging
 
@@ -161,11 +162,14 @@ class AvatarUploadView(StandardizedResponseMixin, APIView):
     def post(self, request):
         if 'avatar' not in request.FILES:
             return error_response('No avatar file provided.', status_code=status.HTTP_400_BAD_REQUEST)
-        
+
+        processed = resize_image(request.FILES['avatar'], max_size=400, quality=85)
+        avatar_file = processed or request.FILES['avatar']
+
         user = request.user
-        user.avatar = request.FILES['avatar']
+        user.avatar = avatar_file
         user.save(update_fields=['avatar'])
-        
+
         avatar_url = request.build_absolute_uri(user.avatar.url)
         return success_response({
             'detail': 'Avatar uploaded successfully.',
