@@ -302,6 +302,7 @@ export default function UserManagement() {
                         fill
                         className="object-cover"
                         unoptimized
+                        loading="eager"
                       />
                     </div>
                   </TableCell>
