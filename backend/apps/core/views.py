@@ -39,6 +39,15 @@ class HelpSupportPageView(StandardizedResponseMixin, APIView):
 		})
 
 
+class TermsAndConditionsPageView(StandardizedResponseMixin, APIView):
+	permission_classes = [permissions.AllowAny]
+
+	def get(self, request):
+		ContentPage.ensure_defaults()
+		page = get_object_or_404(ContentPage, slug='terms-of-service', is_active=True)
+		return success_response(ContentPageSerializer(page).data)
+
+
 class DeleteAccountPolicyView(StandardizedResponseMixin, APIView):
 	permission_classes = [permissions.AllowAny]
 

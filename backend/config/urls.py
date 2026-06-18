@@ -19,6 +19,8 @@ urlpatterns = [
     path('api/', include('apps.pricing.urls')),
     path('api/', include('apps.core.urls')),
     path('', include('apps.iap.urls')),
+    path('privacy-policy/', views.PrivacyPolicyPageView.as_view(), name='privacy-policy'),
+    path('terms-and-conditions/', views.TermsAndConditionsPageView.as_view(), name='terms-and-conditions'),
     path('delete-account/', views.DeleteAccountPolicyView.as_view(), name='delete-account-policy'),
 
     # API Docs
