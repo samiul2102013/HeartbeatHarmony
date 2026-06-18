@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
-import { ContentPageData } from "@/lib/api/content/content";
+import type { ContentPageData } from "@/lib/api/content/content";
 
 interface ContentPageViewerProps {
   title: string;
@@ -12,7 +12,6 @@ interface ContentPageViewerProps {
 }
 
 export function ContentPageViewer({ title, description, fetchFn }: ContentPageViewerProps) {
-  const [pageTitle, setPageTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +21,6 @@ export function ContentPageViewer({ title, description, fetchFn }: ContentPageVi
       setLoading(true);
       setError(null);
       const data = await fetchFn();
-      setPageTitle(data.title);
       setContent(data.content);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load content");
@@ -54,7 +52,6 @@ export function ContentPageViewer({ title, description, fetchFn }: ContentPageVi
 
       <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardContent className="p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">{pageTitle}</h2>
           <div
             className="prose prose-sm max-w-none text-muted-foreground"
             dangerouslySetInnerHTML={{ __html: content }}
