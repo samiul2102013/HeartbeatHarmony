@@ -21,7 +21,7 @@ export const getTermsAndConditions = () =>
 
 export const updateTermsAndConditions = (data: Partial<ContentPageData>) =>
   requestJson<ContentPageData>("/api/admin/content/terms-and-conditions/", {
-    method: "PUT",
+    method: "PATCH",
     body: JSON.stringify(data),
   });
 
@@ -30,7 +30,7 @@ export const getPrivacyPolicy = () =>
 
 export const updatePrivacyPolicy = (data: Partial<ContentPageData>) =>
   requestJson<ContentPageData>("/api/admin/content/privacy-policy/", {
-    method: "PUT",
+    method: "PATCH",
     body: JSON.stringify(data),
   });
 
@@ -39,6 +39,6 @@ export const getAccountDeletionPolicy = () =>
 
 export const updateAccountDeletionPolicy = (data: Partial<ContentPageData>) =>
   requestJson<ContentPageData>("/api/admin/content/account-deletion-policy/", {
-    method: "PUT",
+    method: "PATCH",
     body: JSON.stringify(data),
   });
