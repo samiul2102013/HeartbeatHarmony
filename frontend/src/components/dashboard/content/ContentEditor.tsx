@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 
 interface ContentEditorProps {
   value: string;
@@ -10,12 +10,21 @@ interface ContentEditorProps {
 
 export function ContentEditor({ value, onChange, placeholder }: ContentEditorProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const isInternal = useRef(false);
 
   const onInput = useCallback(() => {
     if (ref.current) {
+      isInternal.current = true;
       onChange(ref.current.innerHTML);
     }
   }, [onChange]);
+
+  useEffect(() => {
+    if (ref.current && !isInternal.current) {
+      ref.current.innerHTML = value;
+    }
+    isInternal.current = false;
+  }, [value]);
 
   return (
     <div className="border border-input rounded-lg overflow-hidden">
@@ -28,7 +37,6 @@ export function ContentEditor({ value, onChange, placeholder }: ContentEditorPro
         style={{ lineHeight: "1.7" }}
         onInput={onInput}
         onBlur={onInput}
-        dangerouslySetInnerHTML={{ __html: value }}
         data-placeholder={placeholder}
       />
     </div>
