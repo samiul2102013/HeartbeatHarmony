@@ -1,18 +1,16 @@
 "use client";
 
-import { ContentPageEditor } from "@/components/dashboard/content/ContentPageEditor";
+import { ContentPageViewer } from "@/components/dashboard/content/ContentPageViewer";
 import {
   getPrivacyPolicy,
-  updatePrivacyPolicy,
 } from "@/lib/api/content/content";
 
 export default function PrivacyPage() {
   return (
-    <ContentPageEditor
+    <ContentPageViewer
       title="Privacy Policy"
-      description="Manage the Privacy Policy page content displayed to users."
+      description="View the Privacy Policy page content."
       fetchFn={getPrivacyPolicy}
-      updateFn={updatePrivacyPolicy}
     />
   );
 }

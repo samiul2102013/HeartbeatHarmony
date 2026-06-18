@@ -1,18 +1,16 @@
 "use client";
 
-import { ContentPageEditor } from "@/components/dashboard/content/ContentPageEditor";
+import { ContentPageViewer } from "@/components/dashboard/content/ContentPageViewer";
 import {
   getTermsAndConditions,
-  updateTermsAndConditions,
 } from "@/lib/api/content/content";
 
 export default function TermsAndConditionsPage() {
   return (
-    <ContentPageEditor
+    <ContentPageViewer
       title="Terms & Conditions"
-      description="Manage the Terms and Conditions page content displayed to users."
+      description="View the Terms and Conditions page content."
       fetchFn={getTermsAndConditions}
-      updateFn={updateTermsAndConditions}
     />
   );
 }

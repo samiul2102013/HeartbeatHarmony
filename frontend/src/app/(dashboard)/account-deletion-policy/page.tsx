@@ -1,18 +1,16 @@
 "use client";
 
-import { ContentPageEditor } from "@/components/dashboard/content/ContentPageEditor";
+import { ContentPageViewer } from "@/components/dashboard/content/ContentPageViewer";
 import {
   getAccountDeletionPolicy,
-  updateAccountDeletionPolicy,
 } from "@/lib/api/content/content";
 
 export default function AccountDeletionPolicyPage() {
   return (
-    <ContentPageEditor
+    <ContentPageViewer
       title="Account Deletion Policy"
-      description="Manage the Account Deletion Policy page content displayed to users."
+      description="View the Account Deletion Policy page content."
       fetchFn={getAccountDeletionPolicy}
-      updateFn={updateAccountDeletionPolicy}
     />
   );
 }
