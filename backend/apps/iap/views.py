@@ -121,6 +121,7 @@ class VerifyPurchaseView(APIView):
 
 class PremiumStatusView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [VerifyThrottle]
 
     def get(self, request):
         purchase = (
