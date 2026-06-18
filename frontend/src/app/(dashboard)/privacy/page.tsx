@@ -6,7 +6,7 @@ import {
   updatePrivacyPolicy,
 } from "@/lib/api/content/content";
 
-export default function PrivacyPolicyPage() {
+export default function PrivacyPage() {
   return (
     <ContentPageEditor
       title="Privacy Policy"

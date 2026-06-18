@@ -100,9 +100,9 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     const [contentOpen, setContentOpen] = useState(true);
 
     const contentItems = [
-    { label: "Terms & Conditions", href: "/content/terms-and-conditions", icon: FileTextIcon },
-    { label: "Privacy Policy", href: "/content/privacy-policy", icon: FileTextIcon },
-    { label: "Account Deletion Policy", href: "/content/account-deletion-policy", icon: FileTextIcon },
+    { label: "Terms & Conditions", href: "/terms-and-conditions", icon: FileTextIcon },
+    { label: "Privacy Policy", href: "/privacy", icon: FileTextIcon },
+    { label: "Account Deletion Policy", href: "/account-deletion-policy", icon: FileTextIcon },
 ];
 
     const navItems = [
