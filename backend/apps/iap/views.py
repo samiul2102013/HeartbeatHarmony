@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 
 from .models import InAppPurchase
 from .serializers import PurchaseVerifySerializer, PremiumStatusSerializer
@@ -18,9 +19,12 @@ from .store_clients import (
     MONTHLY_DURATION_DAYS,
 )
 
+class VerifyThrottle(UserRateThrottle):
+    rate = '10/minute'
 
 class VerifyPurchaseView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [VerifyThrottle]
 
     def post(self, request):
         serializer = PurchaseVerifySerializer(data=request.data)
