@@ -10,35 +10,48 @@ export type ContentPageData = {
   updated_at?: string;
 };
 
-const CONTENT_SLUGS = {
-  terms: "terms-and-conditions",
-  privacy: "privacy-policy",
-  deletionPolicy: "account-deletion-policy",
-} as const;
+type ApiPayload<T> = {
+  success: boolean;
+  message: string;
+  status: number;
+  data: T;
+};
 
-export const getTermsAndConditions = () =>
-  requestJson<ContentPageData>("/api/admin/content/terms-and-conditions/");
+export const getTermsAndConditions = async () => {
+  const res = await requestJson<ApiPayload<ContentPageData>>("/api/admin/content/terms-and-conditions/");
+  return res.data;
+};
 
-export const updateTermsAndConditions = (data: Partial<ContentPageData>) =>
-  requestJson<ContentPageData>("/api/admin/content/terms-and-conditions/", {
+export const updateTermsAndConditions = async (data: Partial<ContentPageData>) => {
+  const res = await requestJson<ApiPayload<ContentPageData>>("/api/admin/content/terms-and-conditions/", {
     method: "PATCH",
     body: JSON.stringify(data),
   });
+  return res.data;
+};
 
-export const getPrivacyPolicy = () =>
-  requestJson<ContentPageData>("/api/admin/content/privacy-policy/");
+export const getPrivacyPolicy = async () => {
+  const res = await requestJson<ApiPayload<ContentPageData>>("/api/admin/content/privacy-policy/");
+  return res.data;
+};
 
-export const updatePrivacyPolicy = (data: Partial<ContentPageData>) =>
-  requestJson<ContentPageData>("/api/admin/content/privacy-policy/", {
+export const updatePrivacyPolicy = async (data: Partial<ContentPageData>) => {
+  const res = await requestJson<ApiPayload<ContentPageData>>("/api/admin/content/privacy-policy/", {
     method: "PATCH",
     body: JSON.stringify(data),
   });
+  return res.data;
+};
 
-export const getAccountDeletionPolicy = () =>
-  requestJson<ContentPageData>("/api/admin/content/account-deletion-policy/");
+export const getAccountDeletionPolicy = async () => {
+  const res = await requestJson<ApiPayload<ContentPageData>>("/api/admin/content/account-deletion-policy/");
+  return res.data;
+};
 
-export const updateAccountDeletionPolicy = (data: Partial<ContentPageData>) =>
-  requestJson<ContentPageData>("/api/admin/content/account-deletion-policy/", {
+export const updateAccountDeletionPolicy = async (data: Partial<ContentPageData>) => {
+  const res = await requestJson<ApiPayload<ContentPageData>>("/api/admin/content/account-deletion-policy/", {
     method: "PATCH",
     body: JSON.stringify(data),
   });
+  return res.data;
+};

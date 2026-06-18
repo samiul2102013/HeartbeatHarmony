@@ -5,11 +5,11 @@ import {
   getAccountDeletionPolicy,
 } from "@/lib/api/content/content";
 
-export default function AccountDeletionPolicyPage() {
+export default function DeleteAccountPage() {
   return (
     <ContentPageViewer
       title="Account Deletion Policy"
-      description="View the Account Deletion Policy page content."
+      description="Account Deletion Policy"
       fetchFn={getAccountDeletionPolicy}
     />
   );
