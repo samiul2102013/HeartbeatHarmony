@@ -50,3 +50,12 @@ export type { AdminMaterial, MaterialQuery } from "./api/study/materials";
 export type { QuestionPayload } from "./api/study/questions";
 export type { QuizPayload, QuizQuery, StudyQuiz, StudyQuestion } from "./api/study/quizzes";
 export type { AttemptQuery } from "./api/study/attempts";
+export {
+  getTermsAndConditions,
+  updateTermsAndConditions,
+  getPrivacyPolicy,
+  updatePrivacyPolicy,
+  getAccountDeletionPolicy,
+  updateAccountDeletionPolicy,
+} from "./api/content/content";
+export type { ContentPageData } from "./api/content/content";

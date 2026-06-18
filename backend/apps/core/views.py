@@ -66,6 +66,23 @@ class AppConfigView(APIView):
 
 # ── Admin Views ───────────────────────────────────────────────
 
+CONTENT_ADMIN_SLUGS = ['terms-of-service', 'privacy-policy', 'account-deletion-policy']
+
+
+class AdminContentBySlugView(StandardizedResponseMixin, generics.RetrieveUpdateAPIView):
+    serializer_class = AdminContentPageSerializer
+    permission_classes = [IsAdminRole]
+    lookup_field = 'slug'
+
+    def get_object(self):
+        slug = self.kwargs.get('slug')
+        if slug not in CONTENT_ADMIN_SLUGS:
+            from django.http import Http404
+            raise Http404('Content page not found')
+        ContentPage.ensure_defaults()
+        return get_object_or_404(ContentPage, slug=slug)
+
+
 class AdminContentPageListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView):
 	serializer_class = AdminContentPageSerializer
 	permission_classes = [IsAdminRole]

@@ -43,6 +43,21 @@ DEFAULT_CONTENT_PAGES = {
 			'<p>We prioritize user privacy, scientific wellness practices, inclusive community building, and continuous improvement based on user feedback.</p>'
 		),
 	},
+	'account-deletion-policy': {
+		'title': 'Account Deletion Policy',
+		'content': (
+			'<h2>Account Deletion Policy</h2>'
+			'<p>You have the right to delete your account and associated data at any time.</p>'
+			'<h3>What Happens When You Delete Your Account</h3>'
+			'<p>When you request account deletion, all your personal data including profile information, check-in history, habits, community messages, and study progress will be permanently removed from our servers.</p>'
+			'<h3>How to Delete Your Account</h3>'
+			'<p>You can delete your account from the app settings by selecting "Delete Account". Confirm your choice and your account will be permanently deleted.</p>'
+			'<h3>Data Retention</h3>'
+			'<p>Some anonymized data may be retained for analytics purposes. This data cannot be linked back to you.</p>'
+			'<h3>Contact Us</h3>'
+			'<p>If you have questions about account deletion, contact us at support@heartbeatharmony.tech</p>'
+		),
+	},
 	'help-and-support': {
 		'title': 'Help & Support',
 		'content': (

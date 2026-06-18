@@ -16,7 +16,9 @@ import {
   ClipboardList,
   CircleDollarSign,
   LogOut,
-  Menu
+  Menu,
+  ChevronDown,
+  FileText as FileTextIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -95,6 +97,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     const pathname = usePathname();
     const router = useRouter();
+    const [contentOpen, setContentOpen] = useState(true);
+
+    const contentItems = [
+    { label: "Terms & Conditions", href: "/content/terms-and-conditions", icon: FileTextIcon },
+    { label: "Privacy Policy", href: "/content/privacy-policy", icon: FileTextIcon },
+    { label: "Account Deletion Policy", href: "/content/account-deletion-policy", icon: FileTextIcon },
+];
 
     const navItems = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -136,6 +145,46 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                         </Link>
                     );
                 })}
+
+                {/* Content dropdown */}
+                <div>
+                  <button
+                    onClick={() => setContentOpen(!contentOpen)}
+                    className={cn(
+                      "flex items-center justify-between w-full px-3 py-2.5 rounded-xl transition-colors text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <span className="flex items-center gap-3">
+                      <FileTextIcon className="h-5 w-5" />
+                      Content
+                    </span>
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", contentOpen && "rotate-180")} />
+                  </button>
+                  {contentOpen && (
+                    <div className="ml-2 mt-0.5 space-y-0.5 border-l-2 border-muted pl-3">
+                      {contentItems.map((item) => {
+                        const isActive = pathname === item.href;
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={onNavigate}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                              isActive
+                                ? "bg-[#D13D3D] text-white"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            )}
+                          >
+                            <Icon className="h-4 w-4" />
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
             </div>
 
             <button

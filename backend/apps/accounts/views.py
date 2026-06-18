@@ -188,6 +188,15 @@ class ChangePasswordView(StandardizedResponseMixin, APIView):
         return success_response({'detail': 'Password updated successfully.'})
 
 
+class DeleteAccountView(StandardizedResponseMixin, APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        user.delete()
+        return success_response({'detail': 'Account deleted successfully.'})
+
+
 # ── Email Verification ────────────────────────────────────────
 
 class VerifyEmailView(StandardizedResponseMixin, APIView):
