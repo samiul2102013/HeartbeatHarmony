@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from apps.core import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -18,6 +19,7 @@ urlpatterns = [
     path('api/', include('apps.pricing.urls')),
     path('api/', include('apps.core.urls')),
     path('', include('apps.iap.urls')),
+    path('delete-account/', views.DeleteAccountPolicyView.as_view(), name='delete-account-policy'),
 
     # API Docs
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

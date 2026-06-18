@@ -39,6 +39,15 @@ class HelpSupportPageView(StandardizedResponseMixin, APIView):
 		})
 
 
+class DeleteAccountPolicyView(StandardizedResponseMixin, APIView):
+	permission_classes = [permissions.AllowAny]
+
+	def get(self, request):
+		ContentPage.ensure_defaults()
+		page = get_object_or_404(ContentPage, slug='account-deletion-policy', is_active=True)
+		return success_response(ContentPageSerializer(page).data)
+
+
 class AppConfigView(APIView):
 	permission_classes = [permissions.AllowAny]
 
