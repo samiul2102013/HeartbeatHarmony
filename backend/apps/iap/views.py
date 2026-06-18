@@ -1,121 +1,117 @@
+from datetime import timedelta
+
+from django.utils import timezone
+from django.db import models as dm
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from django.utils import timezone
-from django.db import transaction
+from rest_framework.response import Response
 
 from .models import InAppPurchase
-from .serializers import (
-    VerifyReceiptSerializer,
-    RestoreReceiptSerializer,
-    PremiumStatusSerializer,
+from .serializers import PurchaseVerifySerializer, PremiumStatusSerializer
+from .store_clients import (
+    verify_android_purchase,
+    verify_ios_purchase,
+    MONTHLY_PRODUCT_IDS,
+    LIFETIME_PRODUCT_IDS,
+    MONTHLY_DURATION_DAYS,
 )
-from .apple_utils import (
-    validate_apple_receipt,
-    extract_purchase_info,
-    AppleValidationError,
-    MONTHLY_PRODUCT_ID,
-    LIFETIME_PRODUCT_ID,
-)
-from apps.core.response_utils import success_response, error_response
 
 
-def _build_premium_data(user):
-    active_purchase = InAppPurchase.objects.filter(
-        user=user, is_active=True
-    ).order_by('-purchase_date').first()
-
-    if active_purchase and active_purchase.is_expired:
-        active_purchase.deactivate_if_expired()
-        active_purchase = None
-
-    if not active_purchase:
-        return {
-            'isPremium': False,
-            'productId': None,
-            'purchaseType': None,
-            'expiresAt': None,
-        }
-
-    return {
-        'isPremium': True,
-        'productId': active_purchase.product_id,
-        'purchaseType': active_purchase.purchase_type,
-        'expiresAt': active_purchase.expires_at,
-    }
-
-
-def _process_purchases(user, purchases):
-    created = []
-    for info in purchases:
-        obj, was_created = InAppPurchase.objects.update_or_create(
-            original_transaction_id=info['original_transaction_id'],
-            defaults={
-                'user': user,
-                'platform': 'ios',
-                'product_id': info['product_id'],
-                'purchase_type': info['purchase_type'],
-                'transaction_id': info['transaction_id'],
-                'purchase_date': info['purchase_date'],
-                'expires_at': info['expires_at'],
-                'is_active': info['is_active'],
-                'environment': info['environment'],
-            },
-        )
-        if was_created:
-            created.append(obj)
-
-    # Update user's plan
-    has_active = InAppPurchase.objects.filter(
-        user=user, is_active=True
-    ).exclude(is_expired=True).exists()
-
-    if has_active and user.plan != 'pro':
-        user.plan = 'pro'
-        user.save(update_fields=['plan'])
-    elif not has_active and user.plan == 'pro':
-        # Don't auto-downgrade here — let a cron/check handle that
-        pass
-
-    return created
-
-
-class VerifyReceiptView(APIView):
+class VerifyPurchaseView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @transaction.atomic
     def post(self, request):
-        serializer = VerifyReceiptSerializer(data=request.data)
+        serializer = PurchaseVerifySerializer(data=request.data)
         if not serializer.is_valid():
-            return error_response(
-                'Invalid request',
-                data=serializer.errors,
-                status_code=status.HTTP_400_BAD_REQUEST,
+            return Response(
+                {'error': 'invalid_payload', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        receipt_data = serializer.validated_data['receipt']
+        data = serializer.validated_data
+        platform = data['platform']
+        product_id = data['product_id']
+        purchase_token = data['purchase_token']
+        transaction_id = data['transaction_id']
 
+        if product_id not in MONTHLY_PRODUCT_IDS and product_id not in LIFETIME_PRODUCT_IDS:
+            return Response(
+                {'error': 'invalid_payload', 'details': 'Unknown product_id'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Idempotency — same token already stored
+        existing = InAppPurchase.objects.filter(purchase_token=purchase_token).first()
+        if existing:
+            is_active = existing.is_verified and (
+                existing.expires_at is None or existing.expires_at > timezone.now()
+            )
+            return Response(
+                PremiumStatusSerializer({
+                    'is_premium': is_active,
+                    'expires_at': existing.expires_at,
+                }).data,
+                status=status.HTTP_200_OK,
+            )
+
+        # Verify with the store
         try:
-            validation = validate_apple_receipt(receipt_data)
-            purchases = extract_purchase_info(validation)
-        except AppleValidationError as e:
-            return error_response(
-                str(e),
-                status_code=status.HTTP_400_BAD_REQUEST,
+            if platform == 'android':
+                verified, raw_resp, expires_at = verify_android_purchase(product_id, purchase_token)
+            else:
+                verified, raw_resp, expires_at = verify_ios_purchase(purchase_token)
+        except Exception:
+            return Response(
+                {'error': 'store_api_error'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        if not purchases:
-            return error_response(
-                'No valid purchases found in receipt',
-                status_code=status.HTTP_400_BAD_REQUEST,
+        if not verified:
+            return Response(
+                {'error': 'purchase_not_verified'},
+                status=status.HTTP_402_PAYMENT_REQUIRED,
             )
 
-        _process_purchases(request.user, purchases)
-        premium = _build_premium_data(request.user)
+        # Fallback: compute expiry for monthly if store didn't provide one
+        expires_at_dt = None
+        if expires_at:
+            expires_at_dt = timezone.datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+        elif product_id in MONTHLY_PRODUCT_IDS:
+            expires_at_dt = timezone.now() + timedelta(days=MONTHLY_DURATION_DAYS)
 
-        return success_response(
-            data=premium,
-            message='Receipt verified',
+        purchase_type = 'lifetime' if product_id in LIFETIME_PRODUCT_IDS else 'subscription'
+
+        InAppPurchase.objects.create(
+            user=request.user,
+            platform=platform,
+            product_id=product_id,
+            purchase_type=purchase_type,
+            original_transaction_id=transaction_id,
+            transaction_id=transaction_id,
+            purchase_date=timezone.now(),
+            expires_at=expires_at_dt,
+            purchase_token=purchase_token,
+            is_verified=True,
+            is_active=True,
+            raw_store_resp=raw_resp,
+        )
+
+        # Upgrade user's plan
+        if request.user.plan != 'pro':
+            try:
+                request.user.plan = 'pro'
+                request.user.save(update_fields=['plan'])
+            except Exception:
+                pass
+
+        return Response(
+            PremiumStatusSerializer({
+                'is_premium': True,
+                'expires_at': expires_at_dt,
+            }).data,
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -123,44 +119,20 @@ class PremiumStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        premium = _build_premium_data(request.user)
-        return success_response(data=premium)
-
-
-class RestorePurchasesView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    @transaction.atomic
-    def post(self, request):
-        serializer = RestoreReceiptSerializer(data=request.data)
-        if not serializer.is_valid():
-            return error_response(
-                'Invalid request',
-                data=serializer.errors,
-                status_code=status.HTTP_400_BAD_REQUEST,
+        purchase = (
+            InAppPurchase.objects
+            .filter(user=request.user, is_verified=True)
+            .filter(dm.Q(expires_at__isnull=True) | dm.Q(expires_at__gt=timezone.now()))
+            .order_by('-created_at')
+            .first()
+        )
+        if purchase:
+            return Response(
+                PremiumStatusSerializer({
+                    'is_premium': True,
+                    'expires_at': purchase.expires_at,
+                }).data,
             )
-
-        receipt_data = serializer.validated_data['receipt']
-
-        try:
-            validation = validate_apple_receipt(receipt_data)
-            purchases = extract_purchase_info(validation)
-        except AppleValidationError as e:
-            return error_response(
-                str(e),
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if not purchases:
-            return error_response(
-                'No valid purchases found in receipt',
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
-
-        _process_purchases(request.user, purchases)
-        premium = _build_premium_data(request.user)
-
-        return success_response(
-            data=premium,
-            message='Purchases restored',
+        return Response(
+            PremiumStatusSerializer({'is_premium': False, 'expires_at': None}).data,
         )

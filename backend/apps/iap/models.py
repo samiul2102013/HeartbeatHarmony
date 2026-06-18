@@ -20,17 +20,24 @@ class InAppPurchase(models.Model):
     platform = models.CharField(max_length=10, choices=Platform.choices)
     product_id = models.CharField(max_length=255)
     purchase_type = models.CharField(max_length=12, choices=PurchaseType.choices)
-    original_transaction_id = models.CharField(max_length=255, unique=True)
-    transaction_id = models.CharField(max_length=255)
+    original_transaction_id = models.CharField(max_length=255)
+    transaction_id = models.CharField(max_length=255, blank=True)
     purchase_date = models.DateTimeField()
     expires_at = models.DateTimeField(null=True, blank=True)
+    purchase_token = models.TextField(unique=True)
     is_active = models.BooleanField(default=True)
+    is_verified = models.BooleanField(default=True)
+    raw_store_resp = models.JSONField(null=True, blank=True)
     environment = models.CharField(max_length=20, default='Production')
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'iap_purchases'
         ordering = ['-purchase_date']
+        indexes = [
+            models.Index(fields=['user', 'is_verified', 'expires_at']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} — {self.product_id} — {'active' if self.is_active else 'inactive'}"

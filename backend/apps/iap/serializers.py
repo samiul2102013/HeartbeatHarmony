@@ -1,18 +1,13 @@
 from rest_framework import serializers
 
 
-class VerifyReceiptSerializer(serializers.Serializer):
-    platform = serializers.ChoiceField(choices=['ios'])
-    receipt = serializers.CharField(help_text="Base64-encoded receipt data from Apple")
-
-
-class RestoreReceiptSerializer(serializers.Serializer):
-    platform = serializers.ChoiceField(choices=['ios'])
-    receipt = serializers.CharField(help_text="Base64-encoded receipt data from Apple")
+class PurchaseVerifySerializer(serializers.Serializer):
+    platform = serializers.ChoiceField(choices=['android', 'ios'])
+    product_id = serializers.CharField()
+    purchase_token = serializers.CharField()
+    transaction_id = serializers.CharField(allow_blank=True, default='')
 
 
 class PremiumStatusSerializer(serializers.Serializer):
-    isPremium = serializers.BooleanField()
-    productId = serializers.CharField(allow_null=True)
-    purchaseType = serializers.CharField(allow_null=True)
-    expiresAt = serializers.DateTimeField(allow_null=True)
+    is_premium = serializers.BooleanField()
+    expires_at = serializers.DateTimeField(allow_null=True)
