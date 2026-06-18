@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
+import dynamic from "next/dynamic";
 import "react-quill-new/dist/quill.snow.css";
 
 const ReactQuill = dynamic(async () => (await import("react-quill-new")).default, { ssr: false });
-
-import dynamic from "next/dynamic";
 
 interface ContentEditorProps {
   value: string;
