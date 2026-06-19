@@ -18,6 +18,8 @@ from .serializers import PurchaseVerifySerializer, PremiumStatusSerializer
 from .store_clients import (
     verify_android_purchase,
     verify_ios_purchase,
+    cancel_android_subscription,
+    cancel_ios_subscription,
     MONTHLY_PRODUCT_IDS,
     LIFETIME_PRODUCT_IDS,
     MONTHLY_DURATION_DAYS,
@@ -136,6 +138,40 @@ class VerifyPurchaseView(APIView):
         )
         logger.info(f'VerifyPurchase success, response 201: {json.dumps(resp.data, default=str)}')
         return resp
+
+
+class CancelSubscriptionView(APIView):
+    """
+    POST /purchases/cancel
+    Cancels the authenticated user's active monthly subscription at the app store.
+    User retains premium access until the end of the current billing period.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        purchase = (
+            InAppPurchase.objects
+            .filter(user=request.user, is_verified=True, is_active=True, purchase_type='subscription')
+            .order_by('-created_at')
+            .first()
+        )
+        if not purchase:
+            return Response({'error': 'No active subscription found'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            if purchase.platform == 'android':
+                cancel_android_subscription(purchase.purchase_token, purchase.product_id)
+            elif purchase.platform == 'ios':
+                cancel_ios_subscription(purchase.original_transaction_id)
+            else:
+                return Response({'error': 'Unknown platform'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            logger.info(f'Subscription cancelled at store for user={request.user.id}, purchase_id={purchase.id}')
+            return Response(status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f'Cancel subscription failed for user={request.user.id}: {e}', exc_info=True)
+            return Response({'error': 'Failed to cancel subscription at store'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class GooglePlayWebhookView(APIView):

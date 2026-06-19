@@ -75,6 +75,73 @@ def _google_api_get(path, access_token):
         raise
 
 
+def _google_api_post(path, access_token, body=None):
+    url = f'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{ANDROID_PACKAGE_NAME}/{path}'
+    data = json.dumps(body).encode('utf-8') if body else b''
+    req = Request(url, data=data or None, headers={'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'})
+    req.method = 'POST'
+    try:
+        resp = urlopen(req, timeout=10).read()
+        return json.loads(resp) if resp else {}
+    except HTTPError as e:
+        error_body = e.read().decode('utf-8', errors='replace')
+        logger.error(f'Google Play API error {e.code} for {url}: {error_body}')
+        raise
+    except Exception as e:
+        logger.error(f'Google Play API unexpected error: {e}', exc_info=True)
+        raise
+
+
+def cancel_android_subscription(purchase_token, product_id):
+    """Cancel an Android subscription via Google Play API.
+    The subscription continues until the end of the current billing period."""
+    try:
+        token = _get_google_access_token()
+    except Exception as e:
+        logger.error(f'Failed to get Google access token for cancel: {e}', exc_info=True)
+        raise
+
+    try:
+        logger.info(f'Cancelling Android subscription: {product_id}')
+        _google_api_post(
+            f'purchases/subscriptions/{product_id}/tokens/{purchase_token}:cancel',
+            token,
+        )
+        logger.info(f'Android subscription cancelled successfully: {product_id}')
+    except HTTPError as e:
+        logger.error(f'Google Play API cancel error: {e}')
+        raise
+    except Exception as e:
+        logger.error(f'Google Play API cancel unexpected error: {e}', exc_info=True)
+        raise
+
+
+def cancel_ios_subscription(original_transaction_id):
+    """Cancel an iOS subscription via App Store Server API.
+    Sets autoRenewStatus to 0 — user keeps access until expiry."""
+    shared_secret = getattr(settings, 'APPLE_SHARED_SECRET', None)
+    if not shared_secret:
+        raise RuntimeError('APPLE_SHARED_SECRET not set')
+
+    from urllib.request import Request as URLRequest
+    import json
+
+    body = json.dumps({'autoRenewStatus': 0}).encode('utf-8')
+    url = f'https://api.storekit-sandbox.itunes.apple.com/inApps/v1/subscriptions/{original_transaction_id}'
+    req = URLRequest(url, data=body, headers={'Content-Type': 'application/json'})
+    req.method = 'PUT'
+
+    try:
+        urlopen(req, timeout=15)
+        logger.info(f'iOS subscription cancelled successfully: {original_transaction_id}')
+    except HTTPError as e:
+        logger.error(f'App Store cancel API error {e.code}: {e.read().decode(errors=\"replace\")}')
+        raise
+    except Exception as e:
+        logger.error(f'App Store cancel API unexpected error: {e}', exc_info=True)
+        raise
+
+
 def verify_android_purchase(
     product_id: str,
     purchase_token: str,
