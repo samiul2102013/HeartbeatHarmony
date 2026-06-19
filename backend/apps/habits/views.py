@@ -190,6 +190,14 @@ class HabitMarkDoneView(StandardizedResponseMixin, APIView):
                 f'Daily limit reached. You can mark up to {DAILY_COMPLETION_LIMIT} habits as done per day.'
             )
 
+        # Check free user total completion limit across all time
+        if not BYPASS_PRO_LIMITS and not user.is_pro:
+            total_completions = HabitCompletion.objects.filter(user=user).count()
+            if total_completions >= FREE_HABIT_LIMIT:
+                return error_response(
+                    f'Free plan allows up to {FREE_HABIT_LIMIT} completions. Upgrade to Pro to complete unlimited habits.'
+                )
+
         # Create the completion
         completion = HabitCompletion.objects.create(
             user=user,

@@ -97,6 +97,10 @@ APPEND_SLASH = False
 # Apple App Store In-App Purchase
 APPLE_SHARED_SECRET = os.getenv('APPLE_SHARED_SECRET', '')
 
+# Google Play In-App Purchase — service account JSON (inline or file path)
+GOOGLE_SERVICE_ACCOUNT_KEY_JSON = os.getenv('GOOGLE_SERVICE_ACCOUNT_KEY_JSON', '')
+GOOGLE_SERVICE_ACCOUNT_KEY_PATH = os.getenv('GOOGLE_SERVICE_ACCOUNT_KEY_PATH', '')
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),

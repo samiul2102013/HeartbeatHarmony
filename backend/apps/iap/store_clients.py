@@ -29,12 +29,19 @@ def _get_google_access_token():
     using the service account JSON key file specified in settings."""
     import jwt as pyjwt
 
-    key_path = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_KEY_PATH', None)
-    if not key_path:
-        raise RuntimeError('GOOGLE_SERVICE_ACCOUNT_KEY_PATH not set')
-
-    with open(key_path) as f:
-        sa_info = json.load(f)
+    import base64 as _b64
+    key_json = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_KEY_JSON', None)
+    if key_json:
+        try:
+            sa_info = json.loads(key_json)
+        except json.JSONDecodeError:
+            sa_info = json.loads(_b64.b64decode(key_json).decode())
+    else:
+        key_path = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_KEY_PATH', None)
+        if not key_path:
+            raise RuntimeError('GOOGLE_SERVICE_ACCOUNT_KEY_PATH or GOOGLE_SERVICE_ACCOUNT_KEY_JSON not set')
+        with open(key_path) as f:
+            sa_info = json.load(f)
 
     now = int(time.time())
     assertion = pyjwt.encode({

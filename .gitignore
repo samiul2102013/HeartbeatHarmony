@@ -27,6 +27,9 @@ wheels/
 
 # Django
 db.sqlite3
+
+# In-App Purchase credentials (Google service account key)
+resources/*.json
 db.sqlite3-journal
 media/
 staticfiles/
