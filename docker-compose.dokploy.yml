@@ -61,7 +61,7 @@ services:
       - R2_BUCKET_NAME=${R2_BUCKET_NAME}
       - R2_CUSTOM_DOMAIN=${R2_CUSTOM_DOMAIN}
       - APPLE_SHARED_SECRET=${APPLE_SHARED_SECRET}
-      - GOOGLE_SERVICE_ACCOUNT_KEY_JSON=${GOOGLE_SERVICE_ACCOUNT_KEY_JSON}
+      - GOOGLE_SERVICE_ACCOUNT_KEY_PATH=/app/google_service_account.json
     depends_on:
       redis:
         condition: service_healthy
@@ -73,6 +73,7 @@ services:
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+      - ./google_service_account.json:/app/google_service_account.json
 
   nginx:
     container_name: hartbeat-nginx
