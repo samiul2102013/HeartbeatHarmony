@@ -46,6 +46,7 @@ def _get_google_access_token():
         with open(key_path) as f:
             sa_info = json.load(f)
 
+    private_key = sa_info['private_key'].replace('\\n', '\n')
     now = int(time.time())
     assertion = pyjwt.encode({
         'iss': sa_info['client_email'],
@@ -53,7 +54,7 @@ def _get_google_access_token():
         'aud': 'https://oauth2.googleapis.com/token',
         'iat': now,
         'exp': now + 3600,
-    }, sa_info['private_key'], algorithm='RS256')
+    }, private_key, algorithm='RS256')
 
     body = json.dumps({
         'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
