@@ -1,3 +1,5 @@
+import json
+import logging
 from datetime import timedelta
 
 from django.utils import timezone
@@ -8,6 +10,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
+
+logger = logging.getLogger(__name__)
 
 from .models import InAppPurchase
 from .serializers import PurchaseVerifySerializer, PremiumStatusSerializer
@@ -27,12 +31,16 @@ class VerifyPurchaseView(APIView):
     throttle_classes = [VerifyThrottle]
 
     def post(self, request):
+        logger.info(f'VerifyPurchase request body: {json.dumps(request.data, default=str)}')
+
         serializer = PurchaseVerifySerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(
+            resp = Response(
                 {'error': 'invalid_payload', 'details': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+            logger.warning(f'VerifyPurchase response 400: {json.dumps(resp.data, default=str)}')
+            return resp
 
         data = serializer.validated_data
         platform = data['platform']
@@ -41,10 +49,12 @@ class VerifyPurchaseView(APIView):
         transaction_id = data['transaction_id']
 
         if product_id not in MONTHLY_PRODUCT_IDS and product_id not in LIFETIME_PRODUCT_IDS:
-            return Response(
+            resp = Response(
                 {'error': 'invalid_payload', 'details': 'Unknown product_id'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+            logger.warning(f'VerifyPurchase unknown product_id: {product_id}')
+            return resp
 
         # Idempotency — same token already stored
         existing = InAppPurchase.objects.filter(purchase_token=purchase_token).first()
@@ -52,31 +62,38 @@ class VerifyPurchaseView(APIView):
             is_active = existing.is_verified and (
                 existing.expires_at is None or existing.expires_at > timezone.now()
             )
-            return Response(
+            resp = Response(
                 PremiumStatusSerializer({
                     'is_premium': is_active,
                     'expires_at': existing.expires_at,
                 }).data,
                 status=status.HTTP_200_OK,
             )
+            logger.info(f'VerifyPurchase duplicate token, response 200: {json.dumps(resp.data, default=str)}')
+            return resp
 
         # Verify with the store
         try:
             if platform == 'android':
                 verified, raw_resp, expires_at = verify_android_purchase(product_id, purchase_token)
+                logger.info(f'Android verify result: verified={verified}, expires_at={expires_at}')
             else:
                 verified, raw_resp, expires_at = verify_ios_purchase(purchase_token)
-        except Exception:
+                logger.info(f'iOS verify result: verified={verified}, expires_at={expires_at}')
+        except Exception as e:
+            logger.error(f'Store API error: {e}', exc_info=True)
             return Response(
                 {'error': 'store_api_error'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         if not verified:
-            return Response(
+            resp = Response(
                 {'error': 'purchase_not_verified'},
                 status=status.HTTP_402_PAYMENT_REQUIRED,
             )
+            logger.warning(f'VerifyPurchase not verified, response 402')
+            return resp
 
         # Fallback: compute expiry for monthly if store didn't provide one
         expires_at_dt = None
@@ -110,13 +127,15 @@ class VerifyPurchaseView(APIView):
             except Exception:
                 pass
 
-        return Response(
+        resp = Response(
             PremiumStatusSerializer({
                 'is_premium': True,
                 'expires_at': expires_at_dt,
             }).data,
             status=status.HTTP_201_CREATED,
         )
+        logger.info(f'VerifyPurchase success, response 201: {json.dumps(resp.data, default=str)}')
+        return resp
 
 
 class PremiumStatusView(APIView):
@@ -132,12 +151,15 @@ class PremiumStatusView(APIView):
             .first()
         )
         if purchase:
-            return Response(
+            resp = Response(
                 PremiumStatusSerializer({
                     'is_premium': True,
                     'expires_at': purchase.expires_at,
                 }).data,
             )
-        return Response(
-            PremiumStatusSerializer({'is_premium': False, 'expires_at': None}).data,
-        )
+        else:
+            resp = Response(
+                PremiumStatusSerializer({'is_premium': False, 'expires_at': None}).data,
+            )
+        logger.info(f'PremiumStatus user={request.user.id} response: {json.dumps(resp.data, default=str)}')
+        return resp
