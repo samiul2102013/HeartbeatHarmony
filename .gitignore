@@ -30,8 +30,10 @@ db.sqlite3
 
 # In-App Purchase credentials (Google service account key)
 resources/*.json
+**/resources/*.json
 google_service_account.json
 backend/google_service_account.json
+deploy.py
 db.sqlite3-journal
 media/
 staticfiles/
