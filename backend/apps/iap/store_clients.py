@@ -1,10 +1,13 @@
 import json
+import logging
 import time
 from datetime import datetime, timezone as tz
 from urllib.request import Request, urlopen
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
 
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 # ── Shared ──────────────────────────────────────────────────────────────────
 
@@ -57,16 +60,35 @@ def _get_google_access_token():
         'assertion': assertion,
     }).encode()
 
-    req = Request('https://oauth2.googleapis.com/token', data=body,
-                  headers={'Content-Type': 'application/x-www-form-urlencoded'})
-    resp = json.loads(urlopen(req, timeout=10).read())
-    return resp['access_token']
+    try:
+        req = Request('https://oauth2.googleapis.com/token', data=body,
+                      headers={'Content-Type': 'application/x-www-form-urlencoded'})
+        resp = json.loads(urlopen(req, timeout=10).read())
+        token = resp['access_token']
+        logger.info('Google OAuth token obtained successfully')
+        return token
+    except HTTPError as e:
+        error_body = e.read().decode('utf-8', errors='replace')
+        logger.error(f'Google OAuth token error {e.code}: {error_body}')
+        raise
+    except Exception as e:
+        logger.error(f'Google OAuth token unexpected error: {e}', exc_info=True)
+        raise
 
 
 def _google_api_get(path, access_token):
-    req = Request(f'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{ANDROID_PACKAGE_NAME}/{path}',
-                  headers={'Authorization': f'Bearer {access_token}'})
-    return json.loads(urlopen(req, timeout=10).read())
+    url = f'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{ANDROID_PACKAGE_NAME}/{path}'
+    req = Request(url, headers={'Authorization': f'Bearer {access_token}'})
+    try:
+        resp = json.loads(urlopen(req, timeout=10).read())
+        return resp
+    except HTTPError as e:
+        error_body = e.read().decode('utf-8', errors='replace')
+        logger.error(f'Google Play API error {e.code} for {url}: {error_body}')
+        raise
+    except Exception as e:
+        logger.error(f'Google Play API unexpected error: {e}', exc_info=True)
+        raise
 
 
 def verify_android_purchase(
@@ -81,10 +103,12 @@ def verify_android_purchase(
     try:
         token = _get_google_access_token()
     except Exception as e:
+        logger.error(f'Failed to get Google access token: {e}', exc_info=True)
         return False, None, None
 
     try:
         if product_id in MONTHLY_PRODUCT_IDS:
+            logger.info(f'Verifying Android subscription: {product_id}')
             resp = _google_api_get(
                 f'purchases/subscriptions/{product_id}/tokens/{purchase_token}',
                 token,
@@ -96,16 +120,24 @@ def verify_android_purchase(
                 datetime.utcfromtimestamp(expiry_ms / 1000).strftime('%Y-%m-%dT%H:%M:%SZ')
                 if expiry_ms else None
             )
+            logger.info(f'Subscription response: expiry_ms={expiry_ms}, now_ms={now_ms}, verified={verified}')
         else:
+            logger.info(f'Verifying Android product (lifetime): {product_id}')
             resp = _google_api_get(
                 f'purchases/products/{product_id}/tokens/{purchase_token}',
                 token,
             )
-            verified = resp.get('purchaseState') == 0
+            purchase_state = resp.get('purchaseState')
+            verified = purchase_state == 0
             expires_at = None
+            logger.info(f'Product response: purchaseState={purchase_state}, verified={verified}')
 
         return verified, resp, expires_at
-    except URLError:
+    except HTTPError as e:
+        logger.error(f'Google Play API HTTP error: {e}')
+        return False, None, None
+    except Exception as e:
+        logger.error(f'Google Play API unexpected error: {e}', exc_info=True)
         return False, None, None
 
 
