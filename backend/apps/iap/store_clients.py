@@ -28,11 +28,12 @@ ANDROID_PACKAGE_NAME = 'com.icsncardiology'
 
 
 def _get_google_access_token():
-    """Create a JWT assertion and exchange it for a Google OAuth2 access token
-    using the service account JSON key file specified in settings."""
-    import jwt as pyjwt
-
+    """Obtain a Google OAuth2 access token for the Android Publisher API
+    using the service account JSON key."""
     import base64 as _b64
+    from google.oauth2 import service_account
+    from google.auth.transport.requests import Request as GoogleRequest
+
     key_json = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_KEY_JSON', None)
     if key_json:
         try:
@@ -46,34 +47,16 @@ def _get_google_access_token():
         with open(key_path) as f:
             sa_info = json.load(f)
 
-    private_key = sa_info['private_key'].replace('\\n', '\n')
-    now = int(time.time())
-    assertion = pyjwt.encode({
-        'iss': sa_info['client_email'],
-        'scope': 'https://www.googleapis.com/auth/androidpublisher',
-        'aud': 'https://oauth2.googleapis.com/token',
-        'iat': now,
-        'exp': now + 3600,
-    }, private_key, algorithm='RS256')
-
-    body = json.dumps({
-        'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        'assertion': assertion,
-    }).encode()
-
     try:
-        req = Request('https://oauth2.googleapis.com/token', data=body,
-                      headers={'Content-Type': 'application/x-www-form-urlencoded'})
-        resp = json.loads(urlopen(req, timeout=10).read())
-        token = resp['access_token']
+        creds = service_account.Credentials.from_service_account_info(
+            sa_info,
+            scopes=['https://www.googleapis.com/auth/androidpublisher'],
+        )
+        creds.refresh(GoogleRequest())
         logger.info('Google OAuth token obtained successfully')
-        return token
-    except HTTPError as e:
-        error_body = e.read().decode('utf-8', errors='replace')
-        logger.error(f'Google OAuth token error {e.code}: {error_body}')
-        raise
+        return creds.token
     except Exception as e:
-        logger.error(f'Google OAuth token unexpected error: {e}', exc_info=True)
+        logger.error(f'Failed to get Google access token: {e}', exc_info=True)
         raise
 
 
