@@ -24,7 +24,7 @@ MONTHLY_DURATION_DAYS = 30
 
 # ── Android Google Play Store (via service account) ─────────────────────────
 
-ANDROID_PACKAGE_NAME = 'com.icsncardiology'
+ANDROID_PACKAGE_NAME = 'com.icsncardiology.heartbeatharmony'
 
 
 def _get_google_access_token():
