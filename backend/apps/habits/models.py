@@ -54,8 +54,8 @@ class Habit(models.Model):
         ordering = ['-created_at']
 
     def clean(self):
-        # Enforce free tier limit (exclude self on updates)
-        if not self.pk:  # only on creation
+        # Enforce free tier limit on manual creation only (not template adoption)
+        if not self.pk and not self.source_template:
             from .utils import is_user_premium
             if not is_user_premium(self.user):
                 existing = Habit.objects.filter(user=self.user, is_active=True).count()
