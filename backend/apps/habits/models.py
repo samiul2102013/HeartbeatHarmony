@@ -6,7 +6,7 @@ FREE_HABIT_LIMIT = 3
 DAILY_COMPLETION_LIMIT = 3
 
 # Toggle this to bypass pro limits during testing
-BYPASS_PRO_LIMITS = True
+BYPASS_PRO_LIMITS = False
 
 
 class Category(models.Model):
