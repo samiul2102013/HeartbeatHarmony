@@ -143,8 +143,8 @@ class VerifyPurchaseView(APIView):
 class CancelSubscriptionView(APIView):
     """
     POST /purchases/cancel
-    Cancels the authenticated user's active monthly subscription at the app store.
-    User retains premium access until the end of the current billing period.
+    Cancels the authenticated user's active monthly subscription at the app store,
+    then sets plan=free and deactivates the purchase in the database.
     """
     permission_classes = [IsAuthenticated]
 
@@ -166,7 +166,14 @@ class CancelSubscriptionView(APIView):
             else:
                 return Response({'error': 'Unknown platform'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            logger.info(f'Subscription cancelled at store for user={request.user.id}, purchase_id={purchase.id}')
+            purchase.is_active = False
+            purchase.save(update_fields=['is_active'])
+
+            if request.user.plan != 'free':
+                request.user.plan = 'free'
+                request.user.save(update_fields=['plan'])
+
+            logger.info(f'Subscription cancelled for user={request.user.id}, purchase_id={purchase.id}')
             return Response(status=status.HTTP_200_OK)
 
         except Exception as e:
