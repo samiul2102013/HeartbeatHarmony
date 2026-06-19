@@ -1,5 +1,6 @@
 from django.utils import timezone
 from django.db import models as dm
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from .models import Habit, HabitTemplate
 
@@ -67,5 +68,8 @@ def resolve_user_habit(user, habit_or_template_pk):
     if not template:
         return None, 'Habit not found.'
 
-    habit, _ = get_or_create_habit_from_template(user, template)
+    try:
+        habit, _ = get_or_create_habit_from_template(user, template)
+    except DjangoValidationError as e:
+        return None, ' '.join(e.messages)
     return habit, None
