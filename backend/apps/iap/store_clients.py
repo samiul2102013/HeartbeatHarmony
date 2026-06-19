@@ -135,7 +135,7 @@ def cancel_ios_subscription(original_transaction_id):
         urlopen(req, timeout=15)
         logger.info(f'iOS subscription cancelled successfully: {original_transaction_id}')
     except HTTPError as e:
-        logger.error(f'App Store cancel API error {e.code}: {e.read().decode(errors=\"replace\")}')
+        logger.error(f'App Store cancel API error {e.code}: {e.read().decode(errors="replace")}')
         raise
     except Exception as e:
         logger.error(f'App Store cancel API unexpected error: {e}', exc_info=True)
