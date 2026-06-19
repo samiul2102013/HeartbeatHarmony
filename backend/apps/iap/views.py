@@ -138,42 +138,72 @@ class VerifyPurchaseView(APIView):
         return resp
 
 
-class CancelSubscriptionView(APIView):
+class GooglePlayWebhookView(APIView):
     """
-    POST /purchases/cancel
-    Cancels the user's active monthly subscription and sets plan back to free.
-    Returns flat JSON: { is_premium, expires_at }
+    POST /webhooks/google-play
+    Receives Real-time Developer Notifications from Google Play via Pub/Sub.
+    Handles subscription cancellation, expiry, and other lifecycle events.
+    No auth — Google signs the request via Pub/Sub verification.
     """
-    permission_classes = [IsAuthenticated]
+    authentication_classes = []
+    permission_classes = []
 
     def post(self, request):
-        purchase = (
-            InAppPurchase.objects
-            .filter(user=request.user, is_verified=True, is_active=True, purchase_type='subscription')
-            .order_by('-created_at')
-            .first()
-        )
-        if not purchase:
-            return Response(
-                PremiumStatusSerializer({'is_premium': False, 'expires_at': None}).data,
-                status=status.HTTP_200_OK,
-            )
+        try:
+            data = request.data
+            message = data.get('message', {})
+            encoded = message.get('data', '')
+            if not encoded:
+                logger.warning('GooglePlay webhook: no data in message')
+                return Response(status=status.HTTP_200_OK)
 
-        purchase.is_active = False
-        purchase.save(update_fields=['is_active'])
+            import base64, json
+            decoded = base64.b64decode(encoded).decode('utf-8')
+            payload = json.loads(decoded)
 
-        if request.user.plan != 'free':
-            try:
-                request.user.plan = 'free'
-                request.user.save(update_fields=['plan'])
-            except Exception:
-                pass
+            dev_notification = payload.get('developerNotification', {})
+            sub_notification = dev_notification.get('subscriptionNotification', {})
+            if not sub_notification:
+                logger.info('GooglePlay webhook: not a subscription notification')
+                return Response(status=status.HTTP_200_OK)
 
-        logger.info(f'Subscription cancelled for user={request.user.id}, purchase_id={purchase.id}')
-        return Response(
-            PremiumStatusSerializer({'is_premium': False, 'expires_at': None}).data,
-            status=status.HTTP_200_OK,
-        )
+            notification_type = sub_notification.get('notificationType')
+            purchase_token = sub_notification.get('purchaseToken')
+            product_id = sub_notification.get('subscriptionId')
+
+            logger.info(f'GooglePlay webhook: type={notification_type}, token={purchase_token}, product={product_id}')
+
+            if not purchase_token:
+                logger.warning('GooglePlay webhook: no purchaseToken')
+                return Response(status=status.HTTP_200_OK)
+
+            purchase = InAppPurchase.objects.filter(purchase_token=purchase_token).first()
+            if not purchase:
+                logger.warning(f'GooglePlay webhook: purchase not found for token {purchase_token[:20]}...')
+                return Response(status=status.HTTP_200_OK)
+
+            # Notification types:
+            # 3 = SUBSCRIPTION_CANCELED, 12 = SUBSCRIPTION_REVOKED, 13 = SUBSCRIPTION_EXPIRED
+            if notification_type in (3, 12, 13):
+                purchase.is_active = False
+                purchase.save(update_fields=['is_active'])
+                logger.info(f'GooglePlay webhook: deactivated purchase {purchase.id} for user {purchase.user.id}')
+
+                if purchase.user.plan != 'free':
+                    purchase.user.plan = 'free'
+                    purchase.user.save(update_fields=['plan'])
+                    logger.info(f'GooglePlay webhook: set user {purchase.user.id} plan to free')
+
+            # 7 = SUBSCRIPTION_RESTARTED — user resubscribed
+            elif notification_type == 7:
+                purchase.is_active = True
+                purchase.save(update_fields=['is_active'])
+
+            return Response(status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f'GooglePlay webhook error: {e}', exc_info=True)
+            return Response(status=status.HTTP_200_OK)
 
 
 class PremiumStatusView(APIView):
