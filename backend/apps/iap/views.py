@@ -138,6 +138,44 @@ class VerifyPurchaseView(APIView):
         return resp
 
 
+class CancelSubscriptionView(APIView):
+    """
+    POST /purchases/cancel
+    Cancels the user's active monthly subscription and sets plan back to free.
+    Returns flat JSON: { is_premium, expires_at }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        purchase = (
+            InAppPurchase.objects
+            .filter(user=request.user, is_verified=True, is_active=True, purchase_type='subscription')
+            .order_by('-created_at')
+            .first()
+        )
+        if not purchase:
+            return Response(
+                PremiumStatusSerializer({'is_premium': False, 'expires_at': None}).data,
+                status=status.HTTP_200_OK,
+            )
+
+        purchase.is_active = False
+        purchase.save(update_fields=['is_active'])
+
+        if request.user.plan != 'free':
+            try:
+                request.user.plan = 'free'
+                request.user.save(update_fields=['plan'])
+            except Exception:
+                pass
+
+        logger.info(f'Subscription cancelled for user={request.user.id}, purchase_id={purchase.id}')
+        return Response(
+            PremiumStatusSerializer({'is_premium': False, 'expires_at': None}).data,
+            status=status.HTTP_200_OK,
+        )
+
+
 class PremiumStatusView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [VerifyThrottle]
