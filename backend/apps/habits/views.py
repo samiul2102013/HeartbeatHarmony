@@ -8,8 +8,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from django.contrib.auth import get_user_model
 
-from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT, BYPASS_PRO_LIMITS
-from .utils import get_adopted_template_ids, resolve_user_habit
+from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
+from .utils import get_adopted_template_ids, resolve_user_habit, is_user_premium
 from .serializers import (
     CategorySerializer, HabitSerializer, HabitSummarySerializer,
     HabitCompletionSerializer, HabitReminderSerializer,
@@ -105,7 +105,7 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
             user=user, completed_date=today
         ).count()
 
-        is_pro = BYPASS_PRO_LIMITS or getattr(user, 'is_pro', False)
+        is_pro = is_user_premium(user)
         count = len(all_habits)
         return success_response(
             {
@@ -116,7 +116,7 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
                 'can_create': is_pro or count < FREE_HABIT_LIMIT,
                 'daily_completions': completions_today,
                 'daily_completion_limit': DAILY_COMPLETION_LIMIT,
-                'can_complete': BYPASS_PRO_LIMITS or completions_today < DAILY_COMPLETION_LIMIT,
+                'can_complete': is_pro or completions_today < DAILY_COMPLETION_LIMIT,
             },
             metadata={
                 'current_page': 1,
@@ -180,22 +180,15 @@ class HabitMarkDoneView(StandardizedResponseMixin, APIView):
         if HabitCompletion.objects.filter(user=user, habit=habit, completed_date=today).exists():
             return error_response('This habit is already marked as done for today.')
 
-        # Check daily limit across all categories
-        completions_today = HabitCompletion.objects.filter(
-            user=user, completed_date=today
-        ).count()
+        # Daily limit: free users max 3/day, premium unlimited
+        if not is_user_premium(user):
+            completions_today = HabitCompletion.objects.filter(
+                user=user, completed_date=today
+            ).count()
 
-        if not BYPASS_PRO_LIMITS and completions_today >= DAILY_COMPLETION_LIMIT:
-            return error_response(
-                f'Daily limit reached. You can mark up to {DAILY_COMPLETION_LIMIT} habits as done per day.'
-            )
-
-        # Check free user total completion limit across all time
-        if not BYPASS_PRO_LIMITS and not user.is_pro:
-            total_completions = HabitCompletion.objects.filter(user=user).count()
-            if total_completions >= FREE_HABIT_LIMIT:
+            if completions_today >= DAILY_COMPLETION_LIMIT:
                 return error_response(
-                    f'Free plan allows up to {FREE_HABIT_LIMIT} completions. Upgrade to Pro to complete unlimited habits.'
+                    f'Daily limit reached. You can mark up to {DAILY_COMPLETION_LIMIT} habits as done per day.'
                 )
 
         # Create the completion
@@ -269,7 +262,7 @@ class DailyHabitStatusView(StandardizedResponseMixin, APIView):
             user=user, completed_date=today
         ).select_related('habit', 'habit__category')
 
-        is_pro = BYPASS_PRO_LIMITS or getattr(user, 'is_pro', False)
+        is_pro = is_user_premium(user)
         comp_count = completions.count()
         return success_response(
             {
@@ -279,7 +272,7 @@ class DailyHabitStatusView(StandardizedResponseMixin, APIView):
                 'daily_completions': comp_count,
                 'daily_completion_limit': DAILY_COMPLETION_LIMIT,
                 'remaining': max(0, DAILY_COMPLETION_LIMIT - comp_count),
-                'can_complete': BYPASS_PRO_LIMITS or comp_count < DAILY_COMPLETION_LIMIT,
+                'can_complete': is_pro or comp_count < DAILY_COMPLETION_LIMIT,
             },
             metadata={
                 'current_page': 1,

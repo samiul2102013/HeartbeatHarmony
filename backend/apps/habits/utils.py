@@ -1,4 +1,18 @@
+from django.utils import timezone
+from django.db import models as dm
+
 from .models import Habit, HabitTemplate
+
+
+def is_user_premium(user):
+    """Check if user has an active (non-expired) InAppPurchase."""
+    from apps.iap.models import InAppPurchase
+    return InAppPurchase.objects.filter(
+        user=user,
+        is_verified=True,
+    ).filter(
+        dm.Q(expires_at__isnull=True) | dm.Q(expires_at__gt=timezone.now())
+    ).exists()
 
 
 def get_adopted_template_ids(user):
