@@ -22,6 +22,7 @@ urlpatterns = [
     path('privacy/', views.PrivacyPolicyPageView.as_view(), name='privacy-policy'),
     path('terms-condition/', views.TermsAndConditionsPageView.as_view(), name='terms-and-conditions'),
     path('delete-account/', views.DeleteAccountPolicyView.as_view(), name='delete-account-policy'),
+    path('help-support/', views.HelpSupportContactView.as_view(), name='help-support'),
 
     # API Docs
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

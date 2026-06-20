@@ -1,4 +1,6 @@
 from django.shortcuts import get_object_or_404
+from django.core.mail import send_mail
+from django.conf import settings
 
 from rest_framework import generics, permissions
 from rest_framework.views import APIView
@@ -150,3 +152,31 @@ class AdminSupportContactView(StandardizedResponseMixin, APIView):
 			serializer.save()
 			return success_response(serializer.data)
 		return success_response(serializer.errors, status_code=400)
+
+
+class HelpSupportContactView(StandardizedResponseMixin, APIView):
+	permission_classes = [permissions.AllowAny]
+
+	def post(self, request):
+		name = request.data.get('name', '').strip()
+		email = request.data.get('email', '').strip()
+		subject = request.data.get('subject', '').strip()
+		description = request.data.get('description', '').strip()
+
+		if not all([name, email, subject, description]):
+			return success_response({'error': 'All fields are required.'}, status_code=400)
+
+		send_mail(
+			subject=f"[Help & Support] {subject}",
+			message=(
+				f"Name: {name}\n"
+				f"Email: {email}\n"
+				f"Subject: {subject}\n\n"
+				f"Message:\n{description}"
+			),
+			from_email=settings.DEFAULT_FROM_EMAIL,
+			recipient_list=['support@ICSNCardiology.org'],
+			fail_silently=False,
+		)
+
+		return success_response({'message': 'Your message has been sent. We will get back to you soon.'})
