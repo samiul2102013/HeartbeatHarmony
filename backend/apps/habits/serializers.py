@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
 
@@ -74,7 +75,11 @@ class HabitSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['user'] = self.context.get('resolved_user') or self.context['request'].user
-        return super().create(validated_data)
+        try:
+            return super().create(validated_data)
+        except DjangoValidationError as e:
+            msg = ' '.join(e.messages) if e.messages else str(e)
+            raise serializers.ValidationError(msg)
 
 
 class HabitSummarySerializer(serializers.ModelSerializer):
