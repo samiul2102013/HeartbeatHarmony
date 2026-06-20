@@ -6,7 +6,9 @@ from .models import Habit, HabitTemplate
 
 
 def is_user_premium(user):
-    """Check if user has an active (non-expired) InAppPurchase."""
+    """Check if user has pro plan or an active (non-expired) InAppPurchase."""
+    if getattr(user, 'plan', None) == 'pro':
+        return True
     from apps.iap.models import InAppPurchase
     return InAppPurchase.objects.filter(
         user=user,
