@@ -180,15 +180,23 @@ class HabitMarkDoneView(StandardizedResponseMixin, APIView):
         if HabitCompletion.objects.filter(user=user, habit=habit, completed_date=today).exists():
             return error_response('This habit is already marked as done for today.')
 
-        # Daily limit: free users max 3/day, premium unlimited
-        if not is_user_premium(user):
-            completions_today = HabitCompletion.objects.filter(
-                user=user, completed_date=today
-            ).count()
+        completions_today = HabitCompletion.objects.filter(
+            user=user, completed_date=today
+        ).count()
 
+        # Free user limits
+        if not is_user_premium(user):
+            # Daily limit: free users max 3/day
             if completions_today >= DAILY_COMPLETION_LIMIT:
                 return error_response(
                     f'Daily limit reached. You can mark up to {DAILY_COMPLETION_LIMIT} habits as done per day.'
+                )
+
+            # Total limit: free users max 3 completions ever
+            total_completions = HabitCompletion.objects.filter(user=user).count()
+            if total_completions >= FREE_HABIT_LIMIT:
+                return error_response(
+                    f'Free plan allows up to {FREE_HABIT_LIMIT} completions. Upgrade to Pro to complete unlimited habits.'
                 )
 
         # Create the completion

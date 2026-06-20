@@ -21,7 +21,7 @@ urlpatterns = [
     path('api/', include('apps.iap.urls')),
     path('privacy-policy/', views.PrivacyPolicyPageView.as_view(), name='privacy-policy'),
     path('terms-and-conditions/', views.TermsAndConditionsPageView.as_view(), name='terms-and-conditions'),
-    path('delete-account/', views.DeleteAccountPolicyView.as_view(), name='delete-account-policy'),
+    path('delete-account-policy/', views.DeleteAccountPolicyView.as_view(), name='delete-account-policy'),
 
     # API Docs
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
