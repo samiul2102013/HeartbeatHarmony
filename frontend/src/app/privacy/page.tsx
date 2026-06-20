@@ -5,13 +5,13 @@ import { Loader2 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
-export default function TermsAndConditionsPage() {
+export default function PrivacyPolicyPage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_BASE}/terms-and-conditions/`, { cache: "no-store" })
+    fetch(`${API_BASE}/privacy/`, { cache: "no-store" })
       .then((r) => r.json())
       .then((res) => {
         if (res?.data) {
