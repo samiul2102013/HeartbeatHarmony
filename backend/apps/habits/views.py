@@ -1,3 +1,4 @@
+from django.db import models
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
@@ -8,11 +9,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from django.contrib.auth import get_user_model
 
-from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
+from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, TemplateCompletion, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
 from .utils import get_adopted_template_ids, resolve_user_habit, is_user_premium
 from .serializers import (
     CategorySerializer, HabitSerializer, HabitSummarySerializer,
-    HabitCompletionSerializer, HabitReminderSerializer,
+    HabitCompletionSerializer, TemplateCompletionSerializer, HabitReminderSerializer,
     AdminCategorySerializer, AdminHabitSerializer,
     HabitTemplateSerializer, AdminHabitTemplateSerializer,
     HabitMaterialSerializer, AdminHabitMaterialSerializer,
@@ -93,7 +94,7 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
 
         user_habit_ids = {h['id'] for h in serializer.data}
         template_habits = [
-            HabitSummarySerializer.from_template(t)
+            HabitSummarySerializer.from_template(t, user=user)
             for t in template_qs
             if t.id not in user_habit_ids
         ]
@@ -101,9 +102,13 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
         all_habits = template_habits + list(serializer.data)
 
         today = timezone.localdate()
-        completions_today = HabitCompletion.objects.filter(
+        habit_comp_today = HabitCompletion.objects.filter(
             user=user, completed_date=today
         ).count()
+        template_comp_today = TemplateCompletion.objects.filter(
+            user=user, completed_date=today
+        ).count()
+        completions_today = habit_comp_today + template_comp_today
 
         is_pro = is_user_premium(user)
         count = len(all_habits)
@@ -162,46 +167,59 @@ class HabitDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyA
 class HabitMarkDoneView(StandardizedResponseMixin, APIView):
     """
     POST /habits/<pk>/done/
-    User marks a habit as done for today.
+    User marks a habit or template as done for today.
     Enforces the 3 completions/day limit across all categories.
     """
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, pk):
         user = _resolve_user(request)
-
-        habit, err = resolve_user_habit(user, pk)
-        if err:
-            return error_response(err, status_code=status.HTTP_404_NOT_FOUND)
-
         today = timezone.localdate()
 
-        # Check if already marked done today
-        if HabitCompletion.objects.filter(user=user, habit=habit, completed_date=today).exists():
-            return error_response('This habit is already marked as done for today.')
+        habit, err = resolve_user_habit(user, pk)
+        if habit:
+            # User's own habit
+            if HabitCompletion.objects.filter(user=user, habit=habit, completed_date=today).exists():
+                return error_response('This habit is already marked as done for today.')
+        else:
+            # Not a user habit — check if it's a template
+            template = HabitTemplate.objects.filter(pk=pk, is_active=True).first()
+            if template:
+                if TemplateCompletion.objects.filter(user=user, template=template, completed_date=today).exists():
+                    return error_response('This habit is already marked as done for today.')
+            else:
+                return error_response(err or 'Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
 
-        completions_today = HabitCompletion.objects.filter(
+        habit_comp_today = HabitCompletion.objects.filter(
             user=user, completed_date=today
         ).count()
+        template_comp_today = TemplateCompletion.objects.filter(
+            user=user, completed_date=today
+        ).count()
+        completions_today = habit_comp_today + template_comp_today
 
         # Free user limits
         if not is_user_premium(user):
-            # Daily limit: free users max 3/day
             if completions_today >= DAILY_COMPLETION_LIMIT:
                 return error_response(
                     f'Daily limit reached. You can mark up to {DAILY_COMPLETION_LIMIT} habits as done per day.'
                 )
 
-        # Create the completion
-        completion = HabitCompletion.objects.create(
-            user=user,
-            habit=habit,
-            completed_date=today,
-        )
+        if habit:
+            completion = HabitCompletion.objects.create(
+                user=user, habit=habit, completed_date=today,
+            )
+            completion_data = HabitCompletionSerializer(completion).data
+        else:
+            template = HabitTemplate.objects.get(pk=pk)
+            tc = TemplateCompletion.objects.create(
+                user=user, template=template, completed_date=today,
+            )
+            completion_data = TemplateCompletionSerializer(tc).data
 
         return success_response(
             {
-                'completion': HabitCompletionSerializer(completion).data,
+                'completion': completion_data,
                 'daily_completions': completions_today + 1,
                 'daily_completion_limit': DAILY_COMPLETION_LIMIT,
                 'remaining': DAILY_COMPLETION_LIMIT - (completions_today + 1),
@@ -214,20 +232,26 @@ class HabitMarkDoneView(StandardizedResponseMixin, APIView):
 class HabitUndoView(StandardizedResponseMixin, APIView):
     """
     DELETE /habits/<pk>/undo/
-    Undo today's completion for a habit.
+    Undo today's completion for a habit or template.
     """
     permission_classes = [permissions.AllowAny]
 
     def delete(self, request, pk):
         user = _resolve_user(request)
-        habit, err = resolve_user_habit(user, pk)
-        if err:
-            return error_response(err, status_code=status.HTTP_404_NOT_FOUND)
-
         today = timezone.localdate()
-        deleted, _ = HabitCompletion.objects.filter(
-            user=user, habit=habit, completed_date=today
-        ).delete()
+
+        habit, err = resolve_user_habit(user, pk)
+        if habit:
+            deleted, _ = HabitCompletion.objects.filter(
+                user=user, habit=habit, completed_date=today
+            ).delete()
+        else:
+            template = HabitTemplate.objects.filter(pk=pk, is_active=True).first()
+            if not template:
+                return error_response(err or 'Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
+            deleted, _ = TemplateCompletion.objects.filter(
+                user=user, template=template, completed_date=today
+            ).delete()
 
         if not deleted:
             return error_response(
@@ -235,9 +259,13 @@ class HabitUndoView(StandardizedResponseMixin, APIView):
                 status_code=status.HTTP_404_NOT_FOUND,
             )
 
-        completions_today = HabitCompletion.objects.filter(
+        habit_comp_today = HabitCompletion.objects.filter(
             user=user, completed_date=today
         ).count()
+        template_comp_today = TemplateCompletion.objects.filter(
+            user=user, completed_date=today
+        ).count()
+        completions_today = habit_comp_today + template_comp_today
 
         return success_response(
             {
@@ -259,15 +287,18 @@ class DailyHabitStatusView(StandardizedResponseMixin, APIView):
     def get(self, request):
         user = _resolve_user(request)
         today = timezone.localdate()
-        completions = HabitCompletion.objects.filter(
+        habit_completions = HabitCompletion.objects.filter(
             user=user, completed_date=today
         ).select_related('habit', 'habit__category')
+        template_completions = TemplateCompletion.objects.filter(
+            user=user, completed_date=today
+        ).select_related('template', 'template__category')
 
         is_pro = is_user_premium(user)
-        comp_count = completions.count()
+        comp_count = habit_completions.count() + template_completions.count()
         return success_response(
             {
-                'completions': HabitCompletionSerializer(completions, many=True).data,
+                'completions': HabitCompletionSerializer(habit_completions, many=True).data,
                 'date': str(today),
                 'is_pro': is_pro,
                 'daily_completions': comp_count,
@@ -423,13 +454,15 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
         return HabitMaterialSerializer
 
     def get_queryset(self):
-        queryset = HabitMaterial.objects.select_related('habit', 'habit__user').order_by('-created_at')
+        queryset = HabitMaterial.objects.select_related('habit', 'habit__user', 'template').order_by('-created_at')
         habit_id = self.request.query_params.get('habit')
         if habit_id:
             queryset = queryset.filter(habit_id=habit_id)
         user = _resolve_user(self.request)
         if not (user.is_staff or getattr(user, 'role', None) == 'admin'):
-            queryset = queryset.filter(habit__user=user)
+            queryset = queryset.filter(
+                models.Q(habit__user=user) | models.Q(template__isnull=False)
+            )
         return queryset
 
     def perform_create(self, serializer):
@@ -438,22 +471,10 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
         habit_template = serializer.validated_data.pop('habit_template', None)
 
         if habit_template:
-            target_habits = list(Habit.objects.filter(source_template=habit_template))
-            if not target_habits:
-                target_habits = [Habit.objects.create(
-                    user=user,
-                    category=habit_template.category,
-                    activity_name=habit_template.activity_name,
-                    description=habit_template.description,
-                    duration=habit_template.duration,
-                    source_template=habit_template,
-                    is_active=True,
-                )]
-            for h in target_habits:
-                HabitMaterial.objects.update_or_create(
-                    habit=h,
-                    defaults=serializer.validated_data,
-                )
+            HabitMaterial.objects.update_or_create(
+                template=habit_template,
+                defaults=serializer.validated_data,
+            )
             return
 
         if not habit:
@@ -482,10 +503,12 @@ class HabitMaterialDetailView(StandardizedResponseMixin, generics.RetrieveUpdate
         return HabitMaterialSerializer
 
     def get_queryset(self):
-        queryset = HabitMaterial.objects.select_related('habit', 'habit__user')
+        queryset = HabitMaterial.objects.select_related('habit', 'habit__user', 'template')
         user = _resolve_user(self.request)
         if not (user.is_staff or getattr(user, 'role', None) == 'admin'):
-            queryset = queryset.filter(habit__user=user)
+            queryset = queryset.filter(
+                models.Q(habit__user=user) | models.Q(template__isnull=False)
+            )
         return queryset
 
 
@@ -506,8 +529,8 @@ class HabitMaterialDeleteView(HabitMaterialDetailView):
 
 class HabitMaterialByHabitView(StandardizedResponseMixin, APIView):
     """
-    GET /api/habits/<habit_id>/material/
-    Returns the single material attached to a habit, or 404 if none exists.
+    GET /api/habits/<pk>/material/
+    Returns the material attached to a habit or template, or 404 if none exists.
     Owners and admins can read; non-owners get 404 (not 403) to avoid leaking
     that the habit exists.
     """
@@ -515,22 +538,26 @@ class HabitMaterialByHabitView(StandardizedResponseMixin, APIView):
 
     def get(self, request, pk):
         user = _resolve_user(request)
-        # Resolve habit, respecting owner-or-admin visibility
+        is_admin = user.is_staff or getattr(user, 'role', None) == 'admin'
+
+        # Try to find by habit first
         try:
             habit = Habit.objects.select_related('user', 'category').get(pk=pk)
         except Habit.DoesNotExist:
-            return error_response('Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
+            habit = None
 
-        is_admin = user.is_staff or getattr(user, 'role', None) == 'admin'
-        if not is_admin and habit.user_id != user.id:
-            return error_response('Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
+        material = None
+        if habit:
+            if not is_admin and habit.user_id != user.id:
+                return error_response('Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
+            material = HabitMaterial.objects.filter(habit=habit).first()
 
-        material = (
-            HabitMaterial.objects
-            .select_related('habit', 'habit__user')
-            .filter(habit=habit)
-            .first()
-        )
+        # If no habit material, try template
+        if material is None:
+            template = HabitTemplate.objects.filter(pk=pk, is_active=True).first()
+            if template:
+                material = HabitMaterial.objects.filter(template=template).first()
+
         if material is None:
             return error_response(
                 'No material attached to this habit.',

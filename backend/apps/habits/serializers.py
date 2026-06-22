@@ -1,7 +1,7 @@
 from django.utils import timezone
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
-from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
+from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, TemplateCompletion, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -128,8 +128,25 @@ class HabitSummarySerializer(serializers.ModelSerializer):
         return material.material_type if material else None
 
     @staticmethod
-    def from_template(template):
+    def from_template(template, user=None):
         """Same list shape as a user habit, using the template's numeric id."""
+        today = timezone.localdate()
+        is_completed = False
+        if user and user.is_authenticated:
+            is_completed = TemplateCompletion.objects.filter(
+                user=user, template=template, completed_date=today
+            ).exists()
+
+        material = HabitMaterial.objects.filter(template=template).first()
+        material_url = None
+        material_type = None
+        if material:
+            material_type = material.material_type
+            if material.material_type == 'video' and material.video_url:
+                material_url = material.video_url
+            elif material.file:
+                material_url = material.file.url
+
         return {
             'id': template.id,
             'activity_name': template.activity_name,
@@ -139,9 +156,9 @@ class HabitSummarySerializer(serializers.ModelSerializer):
             'duration': template.duration,
             'is_active': template.is_active,
             'schedule_time': None,
-            'is_completed_today': False,
-            'material_url': None,
-            'material_type': None,
+            'is_completed_today': is_completed,
+            'material_url': material_url,
+            'material_type': material_type,
             'created_at': template.created_at,
         }
 
@@ -165,6 +182,18 @@ class HabitCompletionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HabitCompletion
+        fields = ['id', 'habit', 'habit_name', 'category_name', 'completed_date', 'created_at']
+        read_only_fields = ['id', 'completed_date', 'created_at']
+
+
+class TemplateCompletionSerializer(serializers.ModelSerializer):
+    habit = serializers.IntegerField(source='template_id', read_only=True)
+    habit_name = serializers.CharField(source='template.activity_name', read_only=True)
+    category_name = serializers.CharField(source='template.category.name', read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = TemplateCompletion
         fields = ['id', 'habit', 'habit_name', 'category_name', 'completed_date', 'created_at']
         read_only_fields = ['id', 'completed_date', 'created_at']
 
@@ -227,8 +256,8 @@ class AdminHabitTemplateSerializer(serializers.ModelSerializer):
 
 
 class HabitMaterialSerializer(serializers.ModelSerializer):
-    habit_title = serializers.CharField(source='habit.activity_name', read_only=True)
-    habit_user = serializers.CharField(source='habit.user.username', read_only=True)
+    habit_title = serializers.SerializerMethodField()
+    habit_user = serializers.SerializerMethodField()
     file = serializers.FileField(required=False, allow_null=True)
 
     class Meta:
@@ -240,10 +269,22 @@ class HabitMaterialSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
+    def get_habit_title(self, obj):
+        if obj.habit:
+            return obj.habit.activity_name
+        if obj.template:
+            return obj.template.activity_name
+        return None
+
+    def get_habit_user(self, obj):
+        if obj.habit:
+            return obj.habit.user.username
+        return None
+
 
 class AdminHabitMaterialSerializer(serializers.ModelSerializer):
-    habit_title = serializers.CharField(source='habit.activity_name', read_only=True)
-    habit_user = serializers.CharField(source='habit.user.username', read_only=True)
+    habit_title = serializers.SerializerMethodField()
+    habit_user = serializers.SerializerMethodField()
     file = serializers.FileField(required=False, allow_null=True)
     habit = serializers.PrimaryKeyRelatedField(
         queryset=Habit.objects.all(),
@@ -266,3 +307,15 @@ class AdminHabitMaterialSerializer(serializers.ModelSerializer):
             'is_active', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_habit_title(self, obj):
+        if obj.habit:
+            return obj.habit.activity_name
+        if obj.template:
+            return obj.template.activity_name
+        return None
+
+    def get_habit_user(self, obj):
+        if obj.habit:
+            return obj.habit.user.username
+        return None

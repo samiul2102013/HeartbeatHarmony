@@ -102,7 +102,16 @@ class HabitMaterial(models.Model):
     habit = models.OneToOneField(
         Habit,
         on_delete=models.CASCADE,
-        related_name='material'
+        related_name='material',
+        null=True,
+        blank=True,
+    )
+    template = models.ForeignKey(
+        HabitTemplate,
+        on_delete=models.CASCADE,
+        related_name='materials',
+        null=True,
+        blank=True,
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
@@ -123,11 +132,15 @@ class HabitMaterial(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.habit.activity_name} — {self.title}"
+        if self.habit:
+            return f"{self.habit.activity_name} — {self.title}"
+        if self.template:
+            return f"[Template] {self.template.activity_name} — {self.title}"
+        return self.title
 
 
 class HabitCompletion(models.Model):
-    """Tracks when a premium user marks a habit as done for a given day."""
+    """Tracks when a user marks a habit as done for a given day."""
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -148,3 +161,27 @@ class HabitCompletion(models.Model):
 
     def __str__(self):
         return f"{self.user.username} — {self.habit.activity_name} — {self.completed_date}"
+
+
+class TemplateCompletion(models.Model):
+    """Tracks when a user marks an admin template as done for a given day."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='template_completions'
+    )
+    template = models.ForeignKey(
+        HabitTemplate,
+        on_delete=models.CASCADE,
+        related_name='completions'
+    )
+    completed_date = models.DateField(help_text="Calendar date of completion")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'template_completions'
+        unique_together = ['user', 'template', 'completed_date']
+        ordering = ['-completed_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} — [Template] {self.template.activity_name} — {self.completed_date}"
