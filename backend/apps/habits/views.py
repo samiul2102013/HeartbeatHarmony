@@ -98,7 +98,7 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
             if t.id not in user_habit_ids
         ]
 
-        all_habits = list(serializer.data) + template_habits
+        all_habits = template_habits + list(serializer.data)
 
         today = timezone.localdate()
         completions_today = HabitCompletion.objects.filter(
