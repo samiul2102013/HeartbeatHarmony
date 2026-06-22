@@ -146,7 +146,7 @@ class HabitSummarySerializer(serializers.ModelSerializer):
         return material.material_type if material else None
 
     @staticmethod
-    def from_template(template, user=None):
+    def from_template(template, user=None, request=None):
         """Same list shape as a user habit, using the template's numeric id."""
         today = timezone.localdate()
         is_completed = False
@@ -163,7 +163,8 @@ class HabitSummarySerializer(serializers.ModelSerializer):
             if material.material_type == 'video' and material.video_url:
                 material_url = material.video_url
             elif material.file:
-                material_url = material.file.url
+                file_url = material.file.url
+                material_url = request.build_absolute_uri(file_url) if request is not None else file_url
 
         return {
             'id': template.id,

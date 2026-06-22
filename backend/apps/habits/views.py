@@ -94,7 +94,7 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
 
         user_habit_ids = {h['id'] for h in serializer.data}
         template_habits = [
-            HabitSummarySerializer.from_template(t, user=user)
+            HabitSummarySerializer.from_template(t, user=user, request=request)
             for t in template_qs
             if t.id not in user_habit_ids
         ]
@@ -572,7 +572,7 @@ class HabitMaterialByHabitView(StandardizedResponseMixin, APIView):
             AdminHabitMaterialSerializer
             if is_admin else HabitMaterialSerializer
         )
-        return success_response(serializer_class(material).data)
+        return success_response(serializer_class(material, context={'request': request}).data)
 
 
 # ── Habit Template Views ─────────────────────────────────────
