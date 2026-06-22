@@ -303,7 +303,7 @@ export function CreateQuizModal({ open, onOpenChange, topics = [], onSubmit }: C
 						/>
 					</div>
 				) : (
-					<div className="space-y-5">
+					<div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
 						<div className="space-y-1.5">
 							<Label className="px-0 text-sm font-semibold">Subject Name</Label>
 							  <Select value={topicId} onValueChange={(value) => setTopicId(value ?? "") }>
@@ -555,14 +555,14 @@ export function ViewQuizDetailsModal({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-3xl rounded-2xl p-6 gap-0">
-				<DialogHeader className="mb-5">
+				<DialogHeader className="mb-5 shrink-0">
 					<DialogTitle className="text-3xl font-bold text-foreground">Quiz Details</DialogTitle>
 					<DialogDescription className="text-sm text-muted-foreground">
 						{quizTitle}
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-4">
+				<div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1">
 					<div className="flex items-center justify-between">
 						<p className="text-2xl font-semibold">Question List</p>
 					</div>
