@@ -53,7 +53,7 @@ def resolve_user_habit(user, habit_or_template_pk):
     """
     Resolve a numeric id to a Habit for this user.
     If pk matches an adopted habit, return it.
-    If pk matches an active template, materialize and return it.
+    Otherwise return None (no materialization; callers handle templates separately).
     """
     habit = Habit.objects.filter(
         pk=habit_or_template_pk,
@@ -62,16 +62,4 @@ def resolve_user_habit(user, habit_or_template_pk):
     ).first()
     if habit:
         return habit, None
-
-    template = HabitTemplate.objects.filter(
-        pk=habit_or_template_pk,
-        is_active=True,
-    ).first()
-    if not template:
-        return None, 'Habit not found.'
-
-    try:
-        habit, _ = get_or_create_habit_from_template(user, template)
-    except DjangoValidationError as e:
-        return None, ' '.join(e.messages)
-    return habit, None
+    return None, 'Habit not found.'
