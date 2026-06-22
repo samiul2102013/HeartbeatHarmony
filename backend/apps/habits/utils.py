@@ -2,7 +2,7 @@ from django.utils import timezone
 from django.db import models as dm
 from django.core.exceptions import ValidationError as DjangoValidationError
 
-from .models import Habit, HabitTemplate
+from .models import Habit, HabitTemplate, TemplateCompletion
 
 
 def is_user_premium(user):
@@ -19,13 +19,20 @@ def is_user_premium(user):
 
 
 def get_adopted_template_ids(user):
-    return set(
+    adopted = set(
         Habit.objects.filter(
             user=user,
             is_active=True,
             source_template_id__isnull=False,
         ).values_list('source_template_id', flat=True)
     )
+    # Also consider templates that have been completed via TemplateCompletion
+    completed = set(
+        TemplateCompletion.objects.filter(
+            user=user,
+        ).values_list('template_id', flat=True)
+    )
+    return adopted | completed
 
 
 def get_or_create_habit_from_template(user, template):
