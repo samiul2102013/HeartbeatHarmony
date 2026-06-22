@@ -24,7 +24,6 @@ from .utils import (
 )
 from apps.core.permissions import IsAdminRole
 from apps.core.response_utils import StandardizedResponseMixin, success_response, error_response
-from apps.core.image_utils import resize_image
 from django.conf import settings
 import logging
 
@@ -162,14 +161,11 @@ class AvatarUploadView(StandardizedResponseMixin, APIView):
     def post(self, request):
         if 'avatar' not in request.FILES:
             return error_response('No avatar file provided.', status_code=status.HTTP_400_BAD_REQUEST)
-
-        processed = resize_image(request.FILES['avatar'], max_size=400, quality=85)
-        avatar_file = processed or request.FILES['avatar']
-
+        
         user = request.user
-        user.avatar = avatar_file
+        user.avatar = request.FILES['avatar']
         user.save(update_fields=['avatar'])
-
+        
         avatar_url = request.build_absolute_uri(user.avatar.url)
         return success_response({
             'detail': 'Avatar uploaded successfully.',
@@ -186,15 +182,6 @@ class ChangePasswordView(StandardizedResponseMixin, APIView):
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
         return success_response({'detail': 'Password updated successfully.'})
-
-
-class DeleteAccountView(StandardizedResponseMixin, APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        user = request.user
-        user.delete()
-        return success_response({'detail': 'Account deleted successfully.'})
 
 
 # ── Email Verification ────────────────────────────────────────
@@ -433,6 +420,7 @@ class AdminUserListView(StandardizedResponseMixin, generics.ListAPIView):
     queryset = User.objects.all().order_by('-created_at')
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdminRole]
+    pagination_class = None
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['plan', 'is_active', 'role', 'email_verified']
     search_fields = ['username', 'institute_name', 'email', 'first_name', 'last_name']
