@@ -6,8 +6,20 @@ from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import TokenError
 from channels.db import database_sync_to_async
 
-# Create the Socket.IO async server
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+# Create the Socket.IO async server with Redis manager for multi-worker broadcasts
+import os
+_client_manager = None
+try:
+    redis_url = os.environ.get('REDIS_URL', 'redis://hartbeat-redis:6379/0')
+    _client_manager = socketio.AsyncRedisManager(redis_url)
+except Exception:
+    pass
+
+sio = socketio.AsyncServer(
+    async_mode='asgi',
+    cors_allowed_origins='*',
+    client_manager=_client_manager,
+)
 
 # The main asyncio event loop — captured on first connection
 main_event_loop = None

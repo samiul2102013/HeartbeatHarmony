@@ -2,11 +2,18 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
 from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from apps.core import views
 
+@require_GET
+def health_check(request):
+    return JsonResponse({'status': 'ok'})
+
 urlpatterns = [
+    path('api/health/', health_check),
     path('admin/', admin.site.urls),
     path('api/', include('apps.accounts.urls')),
     path('api/notifications/', include('apps.notifications.urls')),

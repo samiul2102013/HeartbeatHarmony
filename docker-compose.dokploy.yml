@@ -97,7 +97,7 @@ services:
       - "traefik.http.services.backend.loadbalancer.server.port=80"
       - "traefik.http.routers.backend.middlewares=backend-ws"
       - "traefik.http.middlewares.backend-ws.headers.customRequestHeaders.X-Forwarded-Proto=https"
-      - "traefik.http.services.backend.loadbalancer.healthcheck.path=/admin/login/"
+      - "traefik.http.services.backend.loadbalancer.healthcheck.path=/api/health/"
       - "traefik.http.services.backend.loadbalancer.healthcheck.interval=10s"
       - "traefik.http.services.backend.loadbalancer.healthcheck.hostname=${API_DOMAIN}"
 
