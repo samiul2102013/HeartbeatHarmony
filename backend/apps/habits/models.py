@@ -54,8 +54,8 @@ class Habit(models.Model):
         ordering = ['-created_at']
 
     def clean(self):
-        # Enforce free tier limit (exclude self on updates)
-        if not self.pk:
+        # Enforce free tier limit (exclude self on updates, exclude staff/admin)
+        if not self.pk and not self.user.is_staff and getattr(self.user, 'role', None) != 'admin':
             from .utils import is_user_premium
             if not is_user_premium(self.user):
                 existing = Habit.objects.filter(user=self.user, is_active=True).count()
