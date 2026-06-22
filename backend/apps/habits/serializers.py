@@ -57,8 +57,17 @@ class HabitSerializer(serializers.ModelSerializer):
             user=user, habit=obj, completed_date=today
         ).exists()
 
-    def get_material_url(self, obj):
+    def _resolve_material(self, obj):
         material = getattr(obj, 'material', None)
+        if material is not None:
+            return material
+        source_id = getattr(obj, 'source_template_id', None)
+        if source_id is not None:
+            material = HabitMaterial.objects.filter(template_id=source_id).first()
+        return material
+
+    def get_material_url(self, obj):
+        material = self._resolve_material(obj)
         if material is None:
             return None
         if material.material_type == 'video' and material.video_url:
@@ -70,7 +79,7 @@ class HabitSerializer(serializers.ModelSerializer):
         return None
 
     def get_material_type(self, obj):
-        material = getattr(obj, 'material', None)
+        material = self._resolve_material(obj)
         return material.material_type if material else None
 
     def create(self, validated_data):
@@ -111,8 +120,17 @@ class HabitSummarySerializer(serializers.ModelSerializer):
             user=user, habit=obj, completed_date=today
         ).exists()
 
-    def get_material_url(self, obj):
+    def _resolve_material(self, obj):
         material = getattr(obj, 'material', None)
+        if material is not None:
+            return material
+        source_id = getattr(obj, 'source_template_id', None)
+        if source_id is not None:
+            material = HabitMaterial.objects.filter(template_id=source_id).first()
+        return material
+
+    def get_material_url(self, obj):
+        material = self._resolve_material(obj)
         if material is None:
             return None
         if material.material_type == 'video' and material.video_url:
@@ -124,7 +142,7 @@ class HabitSummarySerializer(serializers.ModelSerializer):
         return None
 
     def get_material_type(self, obj):
-        material = getattr(obj, 'material', None)
+        material = self._resolve_material(obj)
         return material.material_type if material else None
 
     @staticmethod

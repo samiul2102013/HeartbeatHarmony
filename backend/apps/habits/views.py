@@ -486,9 +486,13 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('You can only add materials to your own habits.')
 
+        template_id = habit.source_template_id
         HabitMaterial.objects.update_or_create(
             habit=habit,
-            defaults=serializer.validated_data,
+            defaults={
+                **serializer.validated_data,
+                'template_id': template_id,
+            },
         )
 
 
