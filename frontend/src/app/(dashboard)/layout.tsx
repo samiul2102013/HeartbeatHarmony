@@ -122,8 +122,8 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 ];
 
     return (
-      <nav className="flex h-full flex-col justify-between p-4">
-        <div className="space-y-1">
+      <nav className="flex h-full flex-col p-4">
+        <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
                 {navItems.map((item) => {
                     const isActive = pathname === item.href;
                     const Icon = item.icon;
