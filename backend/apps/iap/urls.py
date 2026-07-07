@@ -6,4 +6,5 @@ urlpatterns = [
     path('purchases/cancel', views.CancelSubscriptionView.as_view(), name='iap-cancel'),
     path('users/me/premium', views.PremiumStatusView.as_view(), name='iap-premium-status'),
     path('webhooks/google-play', views.GooglePlayWebhookView.as_view(), name='iap-google-webhook'),
+    path('webhooks/app-store', views.AppleAppStoreWebhookView.as_view(), name='iap-apple-webhook'),
 ]

@@ -7,6 +7,7 @@ urlpatterns = [
     re_path(r'^auth/register/?$', views.RegisterView.as_view()),
     re_path(r'^auth/login/?$', views.LoginView.as_view()),
     re_path(r'^auth/google/?$', views.GoogleLoginView.as_view()),
+    re_path(r'^auth/apple/?$', views.AppleLoginView.as_view()),
     re_path(r'^auth/token/refresh/?$', TokenRefreshView.as_view()),
 
     # Email verification

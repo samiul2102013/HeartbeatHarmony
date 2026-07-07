@@ -96,6 +96,7 @@ APPEND_SLASH = False
 
 # Apple App Store In-App Purchase
 APPLE_SHARED_SECRET = os.getenv('APPLE_SHARED_SECRET', '')
+APPLE_CLIENT_ID = os.getenv('APPLE_CLIENT_ID', 'com.icsncardiology.heartbeatharmony')
 
 # Google Play In-App Purchase — service account JSON (inline or file path)
 GOOGLE_SERVICE_ACCOUNT_KEY_JSON = os.getenv('GOOGLE_SERVICE_ACCOUNT_KEY_JSON', '')

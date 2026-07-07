@@ -26,6 +26,7 @@ from apps.core.permissions import IsAdminRole
 from apps.core.response_utils import StandardizedResponseMixin, success_response, error_response
 from django.conf import settings
 import logging
+import jwt
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,79 @@ class GoogleLoginView(StandardizedResponseMixin, APIView):
             counter = 1
             while User.objects.filter(username=username).exists():
                 username = f"{base_username}{counter}"
+                counter += 1
+
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                email_verified=True,
+            )
+            user.set_unusable_password()
+            user.save()
+        else:
+            if not user.email_verified:
+                user.email_verified = True
+                user.save(update_fields=['email_verified'])
+
+        token_data = CustomTokenObtainPairSerializer()._build_token_pair(user)
+
+        return success_response({
+            'user': UserProfileSerializer(user).data,
+            'refresh': token_data['refresh'],
+            'access': token_data['access'],
+        })
+
+
+class AppleLoginView(StandardizedResponseMixin, APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        identity_token = request.data.get('identity_token', '').strip()
+        first_name = (request.data.get('first_name') or '').strip()
+        last_name = (request.data.get('last_name') or '').strip()
+
+        if not identity_token:
+            return error_response('identity_token is required.', status_code=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from jwt import PyJWKClient
+
+            jwks_url = 'https://appleid.apple.com/auth/keys'
+            jwks_client = PyJWKClient(jwks_url)
+            signing_key = jwks_client.get_signing_key_from_jwt(identity_token)
+
+            payload = jwt.decode(
+                identity_token,
+                signing_key.key,
+                algorithms=['RS256'],
+                audience=getattr(settings, 'APPLE_CLIENT_ID', None),
+            )
+        except jwt.ExpiredSignatureError:
+            return error_response('Apple identity token has expired.', status_code=status.HTTP_401_UNAUTHORIZED)
+        except jwt.InvalidTokenError as e:
+            logger.error(f'Apple token verification failed: {e}', exc_info=True)
+            return error_response('Invalid Apple identity token.', status_code=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            logger.error(f'Apple login error: {e}', exc_info=True)
+            return error_response('Apple login failed.', status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        email = (payload.get('email') or '').strip().lower()
+        apple_sub = payload.get('sub', '')
+
+        if not email:
+            return error_response('Email not provided by Apple.', status_code=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(email=email).first()
+
+        if not user:
+            base_username = email.split('@')[0]
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f'{base_username}{counter}'
                 counter += 1
 
             user = User.objects.create_user(
