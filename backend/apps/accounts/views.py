@@ -162,6 +162,9 @@ class AppleLoginView(StandardizedResponseMixin, APIView):
         except jwt.InvalidTokenError as e:
             logger.error(f'Apple token verification failed: {e}', exc_info=True)
             return error_response('Invalid Apple identity token.', status_code=status.HTTP_401_UNAUTHORIZED)
+        except jwt.PyJWKClientError as e:
+            logger.error(f'Apple signing key not found: {e}', exc_info=True)
+            return error_response('Apple identity token key not recognized.', status_code=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             logger.error(f'Apple login error: {e}', exc_info=True)
             return error_response('Apple login failed.', status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
