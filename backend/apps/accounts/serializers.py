@@ -22,6 +22,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         return value.lower().strip()
 
+    def validate_username(self, value):
+        value = value.strip()
+        if value and User.objects.filter(username=value).exists():
+            raise serializers.ValidationError('This username is already taken.')
+        return value
+
     def create(self, validated_data):
         email = validated_data.get('email')
 

@@ -8,11 +8,26 @@ client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(host, username=username, password=password, timeout=15)
 
-# Look for the actual Python traceback for register 500
 stdin, stdout, stderr = client.exec_command(
-    'docker logs hartbeat-backend 2>&1 | grep -B2 -A30 "register.*500" | head -60',
+    'docker logs hartbeat-backend --tail 200 2>&1',
     timeout=10
 )
 out = stdout.read().decode("utf-8", errors="replace")
-print(out or "No output")
+
+# Find the last complete traceback before the HTTP status line
+lines = out.split("\n")
+capturing = False
+traceback_lines = []
+for i, line in enumerate(lines):
+    if "Traceback (most recent call last)" in line:
+        capturing = True
+        traceback_lines = [line]
+    elif capturing:
+        traceback_lines.append(line)
+        if line.startswith("10.") or line.startswith("jwt.") or "HTTP" in line:
+            break
+
+# Print the traceback
+for l in traceback_lines:
+    print(l)
 client.close()
