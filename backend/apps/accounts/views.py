@@ -495,9 +495,8 @@ class DeleteAccountView(StandardizedResponseMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request):
-        request.user.is_active = False
-        request.user.save(update_fields=['is_active'])
-        return success_response({'detail': 'Account deleted successfully.'})
+        request.user.delete()
+        return success_response({'detail': 'Account deleted permanently.'})
 
 
 # ── Admin Views ───────────────────────────────────────────────
