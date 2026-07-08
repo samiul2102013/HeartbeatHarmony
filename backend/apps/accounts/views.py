@@ -494,7 +494,7 @@ class ResetPasswordView(StandardizedResponseMixin, APIView):
 class DeleteAccountView(StandardizedResponseMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request):
+    def delete(self, request):
         user = request.user
         password = request.data.get('password', '')
 
