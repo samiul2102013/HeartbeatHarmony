@@ -495,18 +495,8 @@ class DeleteAccountView(StandardizedResponseMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request):
-        user = request.user
-        password = request.data.get('password', '')
-
-        if not password:
-            return error_response('Password is required to delete your account.', status_code=status.HTTP_400_BAD_REQUEST)
-
-        if not user.check_password(password):
-            return error_response('Incorrect password.', status_code=status.HTTP_403_FORBIDDEN)
-
-        user.is_active = False
-        user.save(update_fields=['is_active'])
-
+        request.user.is_active = False
+        request.user.save(update_fields=['is_active'])
         return success_response({'detail': 'Account deleted successfully.'})
 
 
