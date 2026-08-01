@@ -14,6 +14,7 @@ import type { TopicOption } from "@/components/dashboard/quiz-test-modals";
 import {
   createQuestion,
   createQuiz,
+  deleteQuiz,
   getQuiz,
   listAttempts,
   listQuizzes,
@@ -81,6 +82,16 @@ export default function QuizTestPage() {
   const [scoreQuiz, setScoreQuiz] = useState<QuizItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleDeleteQuiz = async (quizId: number) => {
+    if (!window.confirm("Are you sure you want to delete this quiz? This cannot be undone.")) return;
+    try {
+      await deleteQuiz(quizId);
+      setQuizzes((prev) => prev.filter((q) => q.id !== quizId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete quiz");
+    }
+  };
 
   const handleSelectQuiz = async (quizId: number) => {
     try {
@@ -226,12 +237,19 @@ export default function QuizTestPage() {
                   <p className="text-sm text-muted-foreground">{quiz.date}</p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Button className="h-8 px-3 text-sm" style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }} onClick={() => void openDetails(quiz)}>
                     View Details
                   </Button>
                   <Button variant="outline" className="h-8 px-3 text-sm" style={{ color: "var(--primary)", borderColor: "rgba(209,61,61,0.35)" }} onClick={() => void handleOpenScore(quiz)}>
                     See Score
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-8 px-3 text-sm text-destructive border-destructive/40 hover:bg-destructive/10"
+                    onClick={() => void handleDeleteQuiz(quiz.id)}
+                  >
+                    Delete
                   </Button>
                   {quiz.is_selected ? (
                     <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-900/50 ml-auto">
