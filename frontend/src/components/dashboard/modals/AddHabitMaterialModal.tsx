@@ -16,13 +16,16 @@ type AddHabitMaterialModalProps = {
   open: boolean;
   onOpenChange: (value: boolean) => void;
   habits: HabitOption[];
-  onSubmit?: (data: {
-    habit?: number;
-    habit_template?: number;
-    title: string;
-    material_type: string;
-    file?: File;
-  }) => void | Promise<void>;
+  onSubmit?: (
+    data: {
+      habit?: number;
+      habit_template?: number;
+      title: string;
+      material_type: string;
+      file?: File;
+    },
+    onProgress?: (percent: number) => void
+  ) => void | Promise<void>;
 };
 
 export function AddHabitMaterialModal({ open, onOpenChange, habits, onSubmit }: AddHabitMaterialModalProps) {
@@ -32,6 +35,7 @@ export function AddHabitMaterialModal({ open, onOpenChange, habits, onSubmit }: 
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const selectedHabit = habits.find((h) => String(h.id) === habitId);
 
@@ -42,6 +46,7 @@ export function AddHabitMaterialModal({ open, onOpenChange, habits, onSubmit }: 
     setFile(null);
     setError(null);
     setSaving(false);
+    setUploadProgress(null);
   };
 
   useEffect(() => {
@@ -70,18 +75,24 @@ export function AddHabitMaterialModal({ open, onOpenChange, habits, onSubmit }: 
 
     try {
       const isUserHabit = !!selectedHabit?.user_username;
-      await onSubmit?.({
-        ...(isUserHabit ? { habit: Number(habitId) } : { habit_template: Number(habitId) }),
-        title: nextTitle,
-        material_type: type.toLowerCase(),
-        file: file ?? undefined,
-      });
+      await onSubmit?.(
+        {
+          ...(isUserHabit ? { habit: Number(habitId) } : { habit_template: Number(habitId) }),
+          title: nextTitle,
+          material_type: type.toLowerCase(),
+          file: file ?? undefined,
+        },
+        (percent) => {
+          setUploadProgress(percent);
+        }
+      );
       reset();
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create habit material.");
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -155,6 +166,20 @@ export function AddHabitMaterialModal({ open, onOpenChange, habits, onSubmit }: 
         </div>
 
         <div className="mt-6">
+          {uploadProgress !== null && (
+            <div className="mb-4 space-y-1.5">
+              <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                <span>Uploading...</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <div 
+                  className="h-full bg-primary transition-all duration-300 ease-out" 
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
           <ModalFooter onCancel={() => { reset(); onOpenChange(false); }} confirmLabel="Add Material" onConfirm={handleConfirm} loading={saving} />
         </div>
       </DialogContent>

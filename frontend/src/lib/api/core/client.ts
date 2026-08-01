@@ -131,3 +131,56 @@ export async function requestJson<T = unknown>(
 
   return payload as T;
 }
+
+export function uploadJsonWithProgress<T = unknown>(
+  path: string,
+  data: FormData,
+  onProgress?: (percent: number) => void,
+  method: string = "POST"
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const url = buildUrl(path);
+    const token = getAdminAccessToken();
+    const xhr = new XMLHttpRequest();
+
+    xhr.open(method, url, true);
+
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+
+    if (onProgress) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          onProgress(percent);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      let payload = null;
+      try {
+        payload = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        payload = null;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(payload as T);
+      } else {
+        if (xhr.status === 413) {
+          reject(new Error("File is too large. Maximum size is 100MB."));
+        } else {
+          reject(new Error(normalizeError(payload, `${xhr.status} ${xhr.statusText}`)));
+        }
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("Network error occurred during upload. The file might be too large."));
+    };
+
+    xhr.send(data);
+  });
+}

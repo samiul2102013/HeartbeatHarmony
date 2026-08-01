@@ -18,8 +18,10 @@ export {
 export {
   listHabitMaterials,
   createHabitMaterial,
+  createHabitMaterialWithProgress,
   updateHabitMaterial,
   editHabitMaterial,
+  editHabitMaterialWithProgress,
   deleteHabitMaterial,
   removeHabitMaterial,
 } from "./api/habits/materials";

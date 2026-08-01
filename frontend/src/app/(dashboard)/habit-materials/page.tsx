@@ -27,15 +27,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  AdminHabit,
   AdminHabitMaterial,
   HabitTemplate,
   createHabitMaterial,
+  createHabitMaterialWithProgress,
   removeHabitMaterial,
   editHabitMaterial,
+  editHabitMaterialWithProgress,
   listHabitMaterials,
   listHabitTemplates,
-  listHabits,
 } from "@/lib/index";
 
 type MaterialRow = {
@@ -107,7 +107,7 @@ export default function HabitMaterialsPage() {
   const [editingMaterial, setEditingMaterial] = useState<MaterialRow | null>(null);
   const [rawMaterials, setRawMaterials] = useState<AdminHabitMaterial[]>([]);
   const [materials, setMaterials] = useState<MaterialRow[]>([]);
-  const [habits, setHabits] = useState<(HabitTemplate | AdminHabit)[]>([]);
+  const [habits, setHabits] = useState<HabitTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,14 +117,13 @@ export default function HabitMaterialsPage() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [materialsResponse, habitsResponse, userHabitsResponse] = await Promise.all([listHabitMaterials(), listHabitTemplates(), listHabits()]);
+        const [materialsResponse, habitsResponse] = await Promise.all([listHabitMaterials(), listHabitTemplates()]);
         if (!mounted) return;
         const raw = normalizeResponse<AdminHabitMaterial>(materialsResponse);
         setRawMaterials(raw);
         setMaterials(raw.map(mapMaterial));
         const templates = normalizeResponse<HabitTemplate>(habitsResponse);
-        const userHabits = normalizeResponse<AdminHabit>(userHabitsResponse);
-        setHabits([...templates, ...userHabits]);
+        setHabits([...templates]);
       } catch (err) {
         if (!mounted) return;
         setError(err instanceof Error ? err.message : "Unable to load habit materials");
@@ -145,39 +144,60 @@ export default function HabitMaterialsPage() {
     [materials, search]
   );
 
-  const handleCreate = async (data: {
-    habit?: number;
-    habit_template?: number;
-    title: string;
-    material_type: string;
-    file?: File;
-    video_url?: string;
-  }) => {
-    const response = await createHabitMaterial(buildFormData(data));
+  const handleCreate = async (
+    data: {
+      habit?: number;
+      habit_template?: number;
+      title: string;
+      material_type: string;
+      file?: File;
+      video_url?: string;
+    },
+    onProgress?: (percent: number) => void
+  ) => {
+    const formData = buildFormData(data);
+    let response;
+    
+    if (data.file && onProgress) {
+      response = await createHabitMaterialWithProgress(formData, onProgress);
+    } else {
+      response = await createHabitMaterial(formData);
+    }
+    
     const created = (response as any)?.data ?? response;
     setMaterials((prev) => [...prev, mapMaterial(created as AdminHabitMaterial)]);
     setRawMaterials((prev) => [...prev, created as AdminHabitMaterial]);
   };
 
-  const handleEdit = async (data: {
-    id: number;
-    title: string;
-    material_type: string;
-    file?: File;
-    video_url?: string;
-  }) => {
+  const handleEdit = async (
+    data: {
+      id: number;
+      title: string;
+      material_type: string;
+      file?: File;
+      video_url?: string;
+    },
+    onProgress?: (percent: number) => void
+  ) => {
     try {
       setError(null);
       const raw = rawMaterials.find((item) => item.id === data.id);
       const formData = new FormData();
-      if (raw) formData.append("habit", String(raw.habit));
+      if (raw && raw.habit != null) formData.append("habit", String(raw.habit));
       formData.append("title", data.title);
       formData.append("description", "");
       formData.append("material_type", data.material_type);
       formData.append("video_url", data.video_url ?? "");
       formData.append("is_active", "true");
       if (data.file) formData.append("file", data.file);
-      const response = await editHabitMaterial(data.id, formData);
+      
+      let response;
+      if (data.file && onProgress) {
+        response = await editHabitMaterialWithProgress(data.id, formData, onProgress);
+      } else {
+        response = await editHabitMaterial(data.id, formData);
+      }
+      
       const updated = (response as any)?.data ?? response;
       setRawMaterials((prev) => prev.map((item) => (item.id === data.id ? (updated as AdminHabitMaterial) : item)));
       setMaterials((prev) => prev.map((item) => (item.id === data.id ? mapMaterial(updated as AdminHabitMaterial) : item)));

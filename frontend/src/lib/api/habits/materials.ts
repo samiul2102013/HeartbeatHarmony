@@ -1,4 +1,4 @@
-import { requestJson } from "../core/client";
+import { requestJson, uploadJsonWithProgress } from "../core/client";
 
 const extractData = (res: any) => res?.data ?? res;
 
@@ -39,6 +39,10 @@ export const createHabitMaterial = (data: FormData | Record<string, any>) => {
   }).then(extractData);
 };
 
+export const createHabitMaterialWithProgress = (data: FormData, onProgress?: (percent: number) => void) => {
+  return uploadJsonWithProgress("/api/admin/habit-materials/", data, onProgress).then(extractData);
+};
+
 export const updateHabitMaterial = (id: number, data: FormData | Record<string, any>) => {
   const isFormData = data instanceof FormData;
   return requestJson(`/api/admin/habit-materials/${id}/`, {
@@ -55,6 +59,10 @@ export const editHabitMaterial = (id: number, data: FormData | Record<string, an
     body: isFormData ? data : JSON.stringify(data),
     skipContentType: isFormData,
   }).then(extractData);
+};
+
+export const editHabitMaterialWithProgress = (id: number, data: FormData, onProgress?: (percent: number) => void) => {
+  return uploadJsonWithProgress(`/api/admin/habit-materials/${id}/edit/`, data, onProgress, "PATCH").then(extractData);
 };
 
 export const deleteHabitMaterial = (id: number) =>

@@ -4,7 +4,7 @@ from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Case, When, Value, IntegerField
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from django.contrib.auth import get_user_model
@@ -454,7 +454,13 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
         return HabitMaterialSerializer
 
     def get_queryset(self):
-        queryset = HabitMaterial.objects.select_related('habit', 'habit__user', 'template').order_by('-created_at')
+        queryset = HabitMaterial.objects.select_related('habit', 'habit__user', 'template').annotate(
+            is_admin_created=Case(
+                When(template__isnull=False, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        ).order_by('is_admin_created', '-created_at')
         habit_id = self.request.query_params.get('habit')
         if habit_id:
             queryset = queryset.filter(habit_id=habit_id)
@@ -471,10 +477,11 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
         habit_template = serializer.validated_data.pop('habit_template', None)
 
         if habit_template:
-            HabitMaterial.objects.update_or_create(
+            material, _ = HabitMaterial.objects.update_or_create(
                 template=habit_template,
                 defaults=serializer.validated_data,
             )
+            serializer.instance = material
             return
 
         if not habit:
@@ -487,13 +494,14 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
             raise PermissionDenied('You can only add materials to your own habits.')
 
         template_id = habit.source_template_id
-        HabitMaterial.objects.update_or_create(
+        material, _ = HabitMaterial.objects.update_or_create(
             habit=habit,
             defaults={
                 **serializer.validated_data,
                 'template_id': template_id,
             },
         )
+        serializer.instance = material
 
 
 class HabitMaterialDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):

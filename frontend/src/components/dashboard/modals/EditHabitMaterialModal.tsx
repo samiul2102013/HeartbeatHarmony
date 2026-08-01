@@ -23,12 +23,15 @@ type EditHabitMaterialModalProps = {
     habitId: number;
     habitTitle?: string;
   } | null;
-  onSubmit?: (data: {
-    id: number;
-    title: string;
-    material_type: string;
-    file?: File;
-  }) => void | Promise<void>;
+  onSubmit?: (
+    data: {
+      id: number;
+      title: string;
+      material_type: string;
+      file?: File;
+    },
+    onProgress?: (percent: number) => void
+  ) => void | Promise<void>;
 };
 
 export function EditHabitMaterialModal({ open, onOpenChange, habits, material, onSubmit }: EditHabitMaterialModalProps) {
@@ -37,6 +40,7 @@ export function EditHabitMaterialModal({ open, onOpenChange, habits, material, o
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   useEffect(() => {
     if (material) {
@@ -46,6 +50,7 @@ export function EditHabitMaterialModal({ open, onOpenChange, habits, material, o
       setFile(null);
       setError(null);
       setSaving(false);
+      setUploadProgress(null);
     }
   }, [material, open]);
 
@@ -64,17 +69,23 @@ export function EditHabitMaterialModal({ open, onOpenChange, habits, material, o
     setError(null);
 
     try {
-      await onSubmit?.({
-        id: material.id,
-        title: nextTitle,
-        material_type: type.toLowerCase(),
-        file: file ?? undefined,
-      });
+      await onSubmit?.(
+        {
+          id: material.id,
+          title: nextTitle,
+          material_type: type.toLowerCase(),
+          file: file ?? undefined,
+        },
+        (percent) => {
+          setUploadProgress(percent);
+        }
+      );
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update habit material.");
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -123,6 +134,20 @@ export function EditHabitMaterialModal({ open, onOpenChange, habits, material, o
         </div>
 
         <div className="mt-6">
+          {uploadProgress !== null && (
+            <div className="mb-4 space-y-1.5">
+              <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                <span>Uploading...</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <div 
+                  className="h-full bg-primary transition-all duration-300 ease-out" 
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
           <ModalFooter onCancel={() => { setFile(null); setError(null); onOpenChange(false); }} confirmLabel="Save Changes" onConfirm={handleConfirm} loading={saving} />
         </div>
       </DialogContent>
