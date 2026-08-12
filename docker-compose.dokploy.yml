@@ -60,6 +60,16 @@ services:
       - R2_ENDPOINT_URL=${R2_ENDPOINT_URL}
       - R2_BUCKET_NAME=${R2_BUCKET_NAME}
       - R2_CUSTOM_DOMAIN=${R2_CUSTOM_DOMAIN}
+      # S3-compatible storage (Cloudflare R2 or any S3 endpoint).
+      # Set USE_S3=True and fill in the S3_* vars to activate.
+      # S3_* vars take precedence; R2_* vars above are the backward-compat fallback.
+      - USE_S3=${USE_S3:-False}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-}
+      - S3_BUCKET=${S3_BUCKET:-}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-}
+      - S3_REGION=${S3_REGION:-auto}
+      - S3_PUBLIC_URL=${S3_PUBLIC_URL:-}
       - APPLE_SHARED_SECRET=${APPLE_SHARED_SECRET}
       - GOOGLE_SERVICE_ACCOUNT_KEY_PATH=/app/google_service_account.json
     depends_on:

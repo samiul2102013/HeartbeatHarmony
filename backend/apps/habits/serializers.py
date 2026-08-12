@@ -73,8 +73,12 @@ class HabitSerializer(serializers.ModelSerializer):
         if material.material_type == 'video' and material.video_url:
             return material.video_url
         if material.file:
-            request = self.context.get('request')
             file_url = material.file.url
+            # S3/R2 storage returns a fully-qualified https:// URL already;
+            # calling build_absolute_uri() on it would double-prefix the URL.
+            if file_url.startswith(('http://', 'https://')):
+                return file_url
+            request = self.context.get('request')
             return request.build_absolute_uri(file_url) if request is not None else file_url
         return None
 
@@ -136,8 +140,12 @@ class HabitSummarySerializer(serializers.ModelSerializer):
         if material.material_type == 'video' and material.video_url:
             return material.video_url
         if material.file:
-            request = self.context.get('request')
             file_url = material.file.url
+            # S3/R2 storage returns a fully-qualified https:// URL already;
+            # calling build_absolute_uri() on it would double-prefix the URL.
+            if file_url.startswith(('http://', 'https://')):
+                return file_url
+            request = self.context.get('request')
             return request.build_absolute_uri(file_url) if request is not None else file_url
         return None
 
@@ -164,7 +172,12 @@ class HabitSummarySerializer(serializers.ModelSerializer):
                 material_url = material.video_url
             elif material.file:
                 file_url = material.file.url
-                material_url = request.build_absolute_uri(file_url) if request is not None else file_url
+                # S3/R2 storage returns a fully-qualified https:// URL already;
+                # calling build_absolute_uri() on it would double-prefix the URL.
+                if file_url.startswith(('http://', 'https://')):
+                    material_url = file_url
+                else:
+                    material_url = request.build_absolute_uri(file_url) if request is not None else file_url
 
         return {
             'id': template.id,

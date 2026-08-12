@@ -179,33 +179,68 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8005').rstrip('/')
 
-# Cloudflare R2 / S3-compatible media storage (optional, falls back to local storage)
-R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')
-R2_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY')
-R2_ENDPOINT_URL = os.getenv('R2_ENDPOINT_URL')
-R2_BUCKET_NAME = os.getenv('R2_BUCKET_NAME', 'hartbeat-harmony-media')
-R2_CUSTOM_DOMAIN = os.getenv('R2_CUSTOM_DOMAIN', '').strip()
+# ── S3-compatible media storage (Cloudflare R2 or any S3 endpoint) ──────────
+# Set USE_S3=True to activate. All other settings are read from environment
+# variables. When USE_S3=False (the default), local filesystem storage is used
+# exactly as before — no change to dev or existing deployments.
+#
+# Env vars (S3_* preferred; R2_* accepted as a backward-compat fallback):
+#   USE_S3            — "True" / "False" (default: False)
+#   S3_ACCESS_KEY     — R2 / S3 access key ID
+#   S3_SECRET_KEY     — R2 / S3 secret access key
+#   S3_BUCKET         — bucket name
+#   S3_ENDPOINT_URL   — e.g. https://<accountid>.r2.cloudflarestorage.com
+#   S3_REGION         — e.g. "auto" for R2 (default: "auto")
+#   S3_PUBLIC_URL     — public domain for serving files (pub-xxx.r2.dev or
+#                       a custom domain); used as AWS_S3_CUSTOM_DOMAIN so that
+#                       file.url returns a full https:// URL, not the raw S3
+#                       endpoint URL.
 
-if R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL:
+USE_S3 = os.getenv('USE_S3', 'False') == 'True'
+
+if USE_S3:
+    # Read S3_* vars, fall back to legacy R2_* names so existing deployments
+    # that already have R2_* secrets don't need to be re-keyed immediately.
+    AWS_ACCESS_KEY_ID = (
+        os.getenv('S3_ACCESS_KEY') or os.getenv('R2_ACCESS_KEY_ID', '')
+    )
+    AWS_SECRET_ACCESS_KEY = (
+        os.getenv('S3_SECRET_KEY') or os.getenv('R2_SECRET_ACCESS_KEY', '')
+    )
+    AWS_STORAGE_BUCKET_NAME = (
+        os.getenv('S3_BUCKET') or os.getenv('R2_BUCKET_NAME', 'hartbeat-harmony-media')
+    )
+    AWS_S3_ENDPOINT_URL = (
+        os.getenv('S3_ENDPOINT_URL') or os.getenv('R2_ENDPOINT_URL', '')
+    )
+    AWS_S3_REGION_NAME = os.getenv('S3_REGION', 'auto')
+
+    # Strip any http(s):// prefix from the public domain so Django builds
+    # clean https:// URLs (S3Boto3Storage prepends "https://" automatically).
+    _s3_public_url = (
+        os.getenv('S3_PUBLIC_URL') or os.getenv('R2_CUSTOM_DOMAIN', '')
+    ).strip()
+    AWS_S3_CUSTOM_DOMAIN = (
+        _s3_public_url.split('://', 1)[-1] if _s3_public_url else None
+    )
+
+    AWS_DEFAULT_ACL = None           # Use bucket policy / public access rules
+    AWS_S3_FILE_OVERWRITE = False    # Never silently overwrite existing files
+
+    # Long-lived cache for immutable media assets
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'public, max-age=31536000, immutable',
+    }
+
+    # Don't append a query-string auth token — bucket/objects must be public
+    AWS_QUERYSTRING_AUTH = False
+
     STORAGES = {
-        "default": {
-            "BACKEND": "storages.backends.s3.S3Storage",
-            "OPTIONS": {
-                "access_key": R2_ACCESS_KEY_ID,
-                "secret_key": R2_SECRET_ACCESS_KEY,
-                "bucket_name": R2_BUCKET_NAME,
-                "endpoint_url": R2_ENDPOINT_URL,
-                "region_name": "auto",
-                "file_overwrite": False,
-                "querystring_auth": False,
-                "custom_domain": R2_CUSTOM_DOMAIN or None,
-                "object_parameters": {
-                    "CacheControl": "public, max-age=31536000, immutable",
-                },
-            },
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
         },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
         },
     }
 
