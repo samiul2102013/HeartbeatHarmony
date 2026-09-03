@@ -9,7 +9,8 @@ WORKDIR /app
 RUN npm install -g pnpm
 
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm rebuild msw sharp unrs-resolver
 
 COPY . .
 
@@ -26,7 +27,8 @@ COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts
+RUN pnpm rebuild sharp
 
 EXPOSE 3004
 
