@@ -93,13 +93,13 @@ export default function QuizTestPage() {
     }
   };
 
-  const handleSelectQuiz = async (quizId: number) => {
+  const handleToggleQuiz = async (quizId: number, currentValue: boolean) => {
     try {
-      await updateQuiz(quizId, { is_selected: true });
+      await updateQuiz(quizId, { is_selected: !currentValue });
       const quizzesData = await listQuizzes();
       setQuizzes((Array.isArray(quizzesData) ? quizzesData : []).map(mapQuiz));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to select quiz");
+      setError(err instanceof Error ? err.message : "Unable to update quiz");
     }
   };
 
@@ -252,11 +252,15 @@ export default function QuizTestPage() {
                     Delete
                   </Button>
                   {quiz.is_selected ? (
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-900/50 ml-auto">
+                    <button
+                      className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-900/50 ml-auto cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+                      onClick={() => void handleToggleQuiz(quiz.id, true)}
+                      title="Click to remove from mobile"
+                    >
                       Active on Mobile
-                    </span>
+                    </button>
                   ) : (
-                    <Button variant="ghost" className="h-8 px-3 text-sm text-muted-foreground hover:text-foreground ml-auto" onClick={() => void handleSelectQuiz(quiz.id)}>
+                    <Button variant="ghost" className="h-8 px-3 text-sm text-muted-foreground hover:text-foreground ml-auto" onClick={() => void handleToggleQuiz(quiz.id, false)}>
                       Select this quiz
                     </Button>
                   )}

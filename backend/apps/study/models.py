@@ -92,9 +92,6 @@ class Quiz(models.Model):
         ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
-        if self.is_selected:
-            # Set all other quizzes to not selected
-            Quiz.objects.exclude(pk=self.pk).update(is_selected=False)
         super().save(*args, **kwargs)
 
     def __str__(self):
