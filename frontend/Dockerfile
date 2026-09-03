@@ -8,8 +8,8 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --config.onlyBuiltDependencies='["msw","sharp","unrs-resolver"]'
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
@@ -23,10 +23,11 @@ RUN npm install -g pnpm
 
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/.npmrc ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 
-RUN pnpm install --prod --frozen-lockfile --config.onlyBuiltDependencies='["msw","sharp","unrs-resolver"]'
+RUN pnpm install --prod --frozen-lockfile
 
 EXPOSE 3004
 
