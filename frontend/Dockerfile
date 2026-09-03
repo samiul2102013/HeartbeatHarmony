@@ -8,7 +8,7 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
@@ -23,7 +23,6 @@ RUN npm install -g pnpm
 
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
-COPY --from=builder /app/.npmrc ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 
