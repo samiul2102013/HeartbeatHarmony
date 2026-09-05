@@ -450,6 +450,16 @@ class AdminQuestionSerializer(serializers.ModelSerializer):
         return data
 
 
+class AdminQuizListSerializer(serializers.ModelSerializer):
+    question_count = serializers.IntegerField(read_only=True)
+    topic_title = serializers.CharField(source='topic.title', read_only=True)
+
+    class Meta:
+        model = Quiz
+        fields = ['id', 'topic', 'topic_title', 'title', 'description', 'is_active', 'is_selected', 'question_count', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
 class AdminQuizSerializer(serializers.ModelSerializer):
     questions = AdminQuestionSerializer(many=True, read_only=True)
     question_count = serializers.IntegerField(read_only=True)

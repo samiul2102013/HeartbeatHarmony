@@ -96,8 +96,11 @@ export default function QuizTestPage() {
   const handleToggleQuiz = async (quizId: number, currentValue: boolean) => {
     try {
       await updateQuiz(quizId, { is_selected: !currentValue });
-      const quizzesData = await listQuizzes();
-      setQuizzes((Array.isArray(quizzesData) ? quizzesData : []).map(mapQuiz));
+      setQuizzes((prev) =>
+        prev.map((q) =>
+          q.id === quizId ? { ...q, is_selected: !currentValue } : q
+        )
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update quiz");
     }

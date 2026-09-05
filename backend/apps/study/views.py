@@ -20,7 +20,7 @@ from .serializers import (
     QuizSubmitSerializer, TopicQuizSubmitSerializer, QuizAttemptSerializer, QuizAttemptDetailSerializer,
     TopicQuizHistorySerializer,
     AdminStudyTopicSerializer, AdminStudyMaterialSerializer,
-    AdminQuizSerializer, AdminQuestionSerializer, AdminQuizAttemptSerializer,
+    AdminQuizSerializer, AdminQuizListSerializer, AdminQuestionSerializer, AdminQuizAttemptSerializer,
 )
 from apps.core.permissions import IsAdminRole
 from apps.core.response_utils import StandardizedResponseMixin, success_response, error_response
@@ -476,15 +476,19 @@ class AdminStudyMaterialDetailView(StandardizedResponseMixin, generics.RetrieveU
 
 
 class AdminQuizListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView):
-    serializer_class = AdminQuizSerializer
     permission_classes = [IsAdminRole]
     pagination_class = None
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['topic', 'is_active']
     search_fields = ['title']
 
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return AdminQuizSerializer
+        return AdminQuizListSerializer
+
     def get_queryset(self):
-        return Quiz.objects.annotate(question_count=Count('questions')).order_by('-created_at')
+        return Quiz.objects.select_related('topic').prefetch_related('questions').annotate(question_count=Count('questions')).order_by('-created_at')
 
     def perform_create(self, serializer):
         quiz = serializer.save()
