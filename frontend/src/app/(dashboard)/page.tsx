@@ -71,20 +71,20 @@ function HeartBalanceBarChart({ data }: { data: { day: string; value: number }[]
 
 function MoodDistribution({ data }: { data: { name: string; value: number; color: string }[] }) {
   return (
-    <Card className="rounded-[20px] border border-border bg-card shadow-[0px_12px_40px_-16px_rgba(0,0,0,0.2)]">
+    <Card className="min-w-0 overflow-hidden rounded-[20px] border border-border bg-card shadow-[0px_12px_40px_-16px_rgba(0,0,0,0.2)]">
       <CardHeader className="px-6 pt-6">
         <h3 className="text-xl font-semibold text-foreground">Mood Distribution</h3>
       </CardHeader>
       <CardContent className="px-6 pb-6">
-        <div className="h-80 w-full">
+        <div className="h-64 w-full min-w-0 overflow-hidden sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={data} cx="50%" cy="50%" innerRadius={80} outerRadius={120} dataKey="value" label={false}>
+            <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+              <Pie data={data} cx="50%" cy="50%" innerRadius="60%" outerRadius="80%" dataKey="value" label={false}>
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Legend />
+              <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: 12, lineHeight: "16px" }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
