@@ -2,7 +2,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from .models import Notification
 from .serializers import NotificationSerializer
-from apps.core.response_utils import StandardizedResponseMixin, success_response, error_response
+from apps.core.response_utils import StandardizedResponseMixin, success_response
 
 class NotificationListView(StandardizedResponseMixin, generics.ListAPIView):
     """List all notifications for the authenticated user."""
@@ -11,23 +11,6 @@ class NotificationListView(StandardizedResponseMixin, generics.ListAPIView):
 
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user)
-
-
-class NotificationMarkReadView(StandardizedResponseMixin, APIView):
-    """Mark a single notification as read."""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, pk):
-        try:
-            notification = Notification.objects.get(pk=pk, user=request.user)
-            notification.is_read = True
-            notification.save(update_fields=['is_read'])
-            return success_response(
-                {'notification': NotificationSerializer(notification).data},
-                message='Notification marked as read.'
-            )
-        except Notification.DoesNotExist:
-            return error_response('Notification not found.', status_code=status.HTTP_404_NOT_FOUND)
 
 
 class NotificationMarkAllReadView(StandardizedResponseMixin, APIView):

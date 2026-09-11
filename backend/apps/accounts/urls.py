@@ -12,7 +12,6 @@ urlpatterns = [
 
     # Email verification
     re_path(r'^auth/verify-email/?$', views.VerifyEmailView.as_view()),
-    re_path(r'^auth/resend-verification/?$', views.ResendVerificationEmailView.as_view()),
 
     # Forgot / Reset password
     re_path(r'^auth/forgot-password/?$', views.ForgotPasswordView.as_view()),

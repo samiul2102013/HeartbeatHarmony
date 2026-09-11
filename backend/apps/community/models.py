@@ -29,6 +29,9 @@ class CommunityMessage(models.Model):
     class Meta:
         db_table = 'community_messages'
         ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+        ]
 
     def __str__(self):
         return f"{self.sender.username}: {self.content[:50]}"
@@ -53,6 +56,10 @@ class DirectMessage(models.Model):
     class Meta:
         db_table = 'direct_messages'
         ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['sender', 'receiver', '-created_at']),
+            models.Index(fields=['receiver', 'is_read']),
+        ]
 
     def __str__(self):
         return f"{self.sender.username} → {self.receiver.username}: {self.content[:50]}"

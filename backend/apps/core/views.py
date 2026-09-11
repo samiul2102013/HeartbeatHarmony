@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.core.cache import caches
 from django.core.mail import send_mail
 from django.conf import settings
 
@@ -12,8 +13,8 @@ from apps.core.response_utils import StandardizedResponseMixin, success_response
 from .models import ContentPage, FAQ, SupportContact
 from .serializers import (
 	ContentPageSerializer, AdminContentPageSerializer,
-	FAQSerializer, AdminFAQSerializer,
-	SupportContactSerializer, AdminSupportContactSerializer
+	FAQSerializer,
+	SupportContactSerializer,
 )
 
 
@@ -63,25 +64,29 @@ class AppConfigView(APIView):
 	permission_classes = [permissions.AllowAny]
 
 	def get(self, request):
-		config_data = {
-			"app_update_config": {
-				"current_versions": {
-					"android": "1.0.0",
-					"ios": "1.0.0"
-				},
-				"update_urls": {
-					"android": "https://play.google.com/store/apps/details?id=YOUR_PACKAGE_NAME",
-					"ios": "https://apps.apple.com/app/idYOUR_APP_ID"
-				},
-				"force_update": False,
-				"update_policy": {
-					"check_on_launch": True,
-					"show_update_dialog": True,
-					"skip_optional_update": True
+		cache = caches['default']
+		cached = cache.get('app-config:v1')
+		if cached is None:
+			cached = {
+				"app_update_config": {
+					"current_versions": {
+						"android": "1.0.0",
+						"ios": "1.0.0"
+					},
+					"update_urls": {
+						"android": "https://play.google.com/store/apps/details?id=YOUR_PACKAGE_NAME",
+						"ios": "https://apps.apple.com/app/idYOUR_APP_ID"
+					},
+					"force_update": False,
+					"update_policy": {
+						"check_on_launch": True,
+						"show_update_dialog": True,
+						"skip_optional_update": True
+					}
 				}
 			}
-		}
-		return Response(config_data)
+			cache.set('app-config:v1', cached, 3600)
+		return Response(cached)
 
 
 # ── Admin Views ───────────────────────────────────────────────
@@ -101,57 +106,6 @@ class AdminContentBySlugView(StandardizedResponseMixin, generics.RetrieveUpdateA
             raise Http404('Content page not found')
         ContentPage.ensure_defaults()
         return get_object_or_404(ContentPage, slug=slug)
-
-
-class AdminContentPageListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView):
-	serializer_class = AdminContentPageSerializer
-	permission_classes = [IsAdminRole]
-	pagination_class = None
-
-	def get_queryset(self):
-		ContentPage.ensure_defaults()
-		return ContentPage.objects.all().order_by('slug')
-
-
-class AdminContentPageDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):
-	serializer_class = AdminContentPageSerializer
-	permission_classes = [IsAdminRole]
-	lookup_field = 'slug'
-
-	def get_queryset(self):
-		ContentPage.ensure_defaults()
-		return ContentPage.objects.all()
-
-
-class AdminFAQListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView):
-	serializer_class = AdminFAQSerializer
-	permission_classes = [IsAdminRole]
-	pagination_class = None
-	queryset = FAQ.objects.all().order_by('order')
-
-
-class AdminFAQDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):
-	serializer_class = AdminFAQSerializer
-	permission_classes = [IsAdminRole]
-	queryset = FAQ.objects.all()
-
-
-class AdminSupportContactView(StandardizedResponseMixin, APIView):
-	permission_classes = [IsAdminRole]
-
-	def get(self, request):
-		contact = SupportContact.objects.first()
-		if contact:
-			return success_response(AdminSupportContactSerializer(contact).data)
-		return success_response({})
-
-	def post(self, request):
-		contact = SupportContact.objects.first()
-		serializer = AdminSupportContactSerializer(contact, data=request.data)
-		if serializer.is_valid():
-			serializer.save()
-			return success_response(serializer.data)
-		return success_response(serializer.errors, status_code=400)
 
 
 class HelpSupportContactView(StandardizedResponseMixin, APIView):

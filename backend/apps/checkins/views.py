@@ -2,6 +2,7 @@ from rest_framework import generics, permissions
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.core.cache import caches
 from django.db.models import Avg, Count
 from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
 from django_filters.rest_framework import DjangoFilterBackend
@@ -22,10 +23,18 @@ from apps.accounts.models import User
 # ── Public/User Views ─────────────────────────────────────────
 
 class MoodListView(StandardizedResponseMixin, generics.ListAPIView):
-    """Active moods for the mobile picker."""
+    """Active moods for the mobile picker (shared payload — cached 5 min)."""
     queryset = Mood.objects.filter(is_active=True)
     serializer_class = MoodSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        cache = caches['default']
+        cached = cache.get('moods:active')
+        if cached is None:
+            cached = MoodSerializer(self.get_queryset(), many=True).data
+            cache.set('moods:active', cached, 300)
+        return success_response(cached)
 
 
 class CheckInCreateView(StandardizedResponseMixin, generics.CreateAPIView):
@@ -42,36 +51,23 @@ class CheckInHistoryView(StandardizedResponseMixin, generics.ListAPIView):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        qs = CheckIn.objects.filter(user=self.request.user)
+        qs = CheckIn.objects.filter(user=self.request.user).select_related('mood')
+        today = timezone.localdate()
         period = self.request.query_params.get('period')  # weekly / monthly / yearly
         if period == 'weekly':
-            qs = qs.filter(created_at__week=self._current_week())
+            # Rolling last 7 days (index-friendly date range).
+            qs = qs.filter(created_at__date__gte=today - datetime.timedelta(days=6))
         elif period == 'monthly':
-            qs = qs.filter(created_at__month=self._current_month(),
-                           created_at__year=self._current_year())
+            qs = qs.filter(
+                created_at__date__gte=today.replace(day=1),
+                created_at__date__lte=today,
+            )
         elif period == 'yearly':
-            qs = qs.filter(created_at__year=self._current_year())
+            qs = qs.filter(
+                created_at__date__gte=today.replace(month=1, day=1),
+                created_at__date__lte=today,
+            )
         return qs
-
-    def _current_week(self):
-        from django.utils import timezone
-        return timezone.now().isocalendar()[1]
-
-    def _current_month(self):
-        from django.utils import timezone
-        return timezone.now().month
-
-    def _current_year(self):
-        from django.utils import timezone
-        return timezone.now().year
-
-
-class CheckInDetailView(StandardizedResponseMixin, generics.RetrieveAPIView):
-    serializer_class = CheckInSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        return CheckIn.objects.filter(user=self.request.user)
 
 
 class DashboardStatsView(StandardizedResponseMixin, APIView):
@@ -158,7 +154,7 @@ class MyProgressView(StandardizedResponseMixin, APIView):
         return success_response({
             'range_start': start_date,
             'range_end': today,
-            'total_checkins': checkins.count(),
+            'total_checkins': len(checkins),
             'average_heart_balance': summary.get('avg_heart_balance'),
             'days': days,
         })

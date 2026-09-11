@@ -340,24 +340,6 @@ class VerifyEmailView(StandardizedResponseMixin, APIView):
         return success_response({'detail': 'Email verified successfully.'})
 
 
-class ResendVerificationEmailView(StandardizedResponseMixin, APIView):
-    """Authenticated user can resend their verification email."""
-
-    def post(self, request):
-        user = request.user
-        if user.email_verified:
-            return error_response(
-                'Email is already verified.',
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-        user.email_verify_token = generate_verification_token()
-        user.email_verification_code = generate_verification_code()
-        user.email_verification_code_created = timezone.now()
-        user.save(update_fields=['email_verify_token', 'email_verification_code', 'email_verification_code_created'])
-        send_verification_email(user, request)
-        return success_response({'detail': 'Verification email sent.'})
-
-
 # ── Forgot / Reset Password ───────────────────────────────────
 
 class ForgotPasswordView(StandardizedResponseMixin, APIView):

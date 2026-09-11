@@ -6,26 +6,14 @@ urlpatterns = [
 
     # Study Topics
     re_path(r'^study/topics/?$', views.StudyTopicListView.as_view()),
-    re_path(r'^study/topics/(?P<pk>\d+)/?$', views.StudyTopicDetailView.as_view()),
 
     # Study Materials
     re_path(r'^study/materials/?$', views.StudyMaterialListView.as_view()),
-    re_path(r'^study/materials/complete/?$', views.MarkMaterialCompleteView.as_view()),
-    re_path(r'^study/materials/(?P<pk>\d+)/?$', views.StudyMaterialDetailView.as_view()),
 
     # Quiz
     re_path(r'^study/quizzes/submit/?$', views.QuizSubmitView.as_view()),
-    re_path(r'^study/topics/submit/?$', views.TopicQuizSubmitView.as_view()),
     re_path(r'^study/quizzes/?$', views.QuizListView.as_view()),
     re_path(r'^study/quizzes/(?P<pk>\d+)/?$', views.QuizDetailView.as_view()),
-
-    # Attempts / History
-    re_path(r'^study/attempts/by-topic/?$', views.MyQuizAttemptsByTopicView.as_view()),
-    re_path(r'^study/attempts/?$', views.MyQuizAttemptsView.as_view()),
-    re_path(r'^study/attempts/(?P<pk>\d+)/?$', views.QuizAttemptDetailView.as_view()),
-
-    # Progress (profile page)
-    re_path(r'^study/progress/?$', views.StudyProgressView.as_view()),
 
     # ── Admin ─────────────────────────────────────────────────
 

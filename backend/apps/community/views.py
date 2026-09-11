@@ -13,7 +13,6 @@ from .serializers import (
 from .pagination import CommunityPagination
 from . import services
 from apps.accounts.models import User
-from apps.core.permissions import IsAdminRole
 from apps.core.response_utils import StandardizedResponseMixin, error_response, success_response
 
 
@@ -122,19 +121,6 @@ class DMThreadView(StandardizedResponseMixin, APIView):
         )
 
 
-class DMMarkReadView(StandardizedResponseMixin, APIView):
-    """Mark all DMs from a user as read and notify via Socket.IO."""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, user_id):
-        count = services.mark_dm_read(request.user, user_id)
-        services.broadcast_messages_read(request.user, user_id, count)
-        return success_response(
-            data={'count': count},
-            message='Messages marked as read',
-        )
-
-
 class MyConversationsView(StandardizedResponseMixin, APIView):
     """
     List of all users the current user has had a DM conversation with.
@@ -187,18 +173,3 @@ class MyConversationsView(StandardizedResponseMixin, APIView):
 
         conversations.sort(key=lambda x: x['last_message_at'] or '', reverse=True)
         return Response(conversations)
-
-
-# ── Admin ─────────────────────────────────────────────────────
-
-class AdminCommunityMessageListView(StandardizedResponseMixin, generics.ListAPIView):
-    queryset = CommunityMessage.objects.select_related('sender').order_by('-created_at')
-    serializer_class = CommunityMessageSerializer
-    permission_classes = [IsAdminRole]
-    pagination_class = None
-
-
-class AdminCommunityMessageDeleteView(StandardizedResponseMixin, generics.DestroyAPIView):
-    queryset = CommunityMessage.objects.all()
-    serializer_class = CommunityMessageSerializer
-    permission_classes = [IsAdminRole]  

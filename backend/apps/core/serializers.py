@@ -21,19 +21,7 @@ class FAQSerializer(serializers.ModelSerializer):
         fields = ['id', 'question', 'answer', 'order']
 
 
-class AdminFAQSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FAQ
-        fields = ['id', 'question', 'answer', 'order', 'is_active']
-
-
 class SupportContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupportContact
         fields = ['email', 'phone']
-
-
-class AdminSupportContactSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SupportContact
-        fields = ['id', 'email', 'phone']

@@ -1,41 +1,11 @@
 from rest_framework import serializers
 from .models import (
     StudyTopic, StudyMaterial, UserMaterialProgress,
-    Quiz, Question, QuizAttempt, QuizAnswer
+    Quiz, Question, QuizAttempt
 )
 
 
-# ── Study Material Serializers ────────────────────────────────
-
-class StudyMaterialSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = StudyMaterial
-        fields = [
-            'id', 'topic', 'title', 'description',
-            'material_type', 'file', 'pdf', 'video_url', 'content',
-            'is_active', 'created_at',
-        ]
-        read_only_fields = ['id', 'created_at']
-
-
-class StudyMaterialListSerializer(serializers.ModelSerializer):
-    """Lightweight — for list views, excludes heavy content field."""
-    is_completed = serializers.SerializerMethodField()
-
-    class Meta:
-        model = StudyMaterial
-        fields = [
-            'id', 'title', 'description', 'material_type',
-            'file', 'pdf', 'video_url', 'is_completed', 'created_at',
-        ]
-
-    def get_is_completed(self, obj):
-        request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            return False
-        return UserMaterialProgress.objects.filter(
-            user=request.user, material=obj, is_completed=True
-        ).exists()
+# ── Study Topic Serializers ─────────────────────────────────
 
 
 class TopicAttemptStatsMixin:
@@ -150,42 +120,6 @@ class StudyMaterialCatalogSerializer(serializers.ModelSerializer):
         ).exists()
 
 
-class StudyTopicSerializer(TopicAttemptStatsMixin, serializers.ModelSerializer):
-    materials = StudyMaterialListSerializer(many=True, read_only=True)
-    material_count = serializers.IntegerField(read_only=True)
-    question_count = serializers.IntegerField(read_only=True)
-    completed_count = serializers.SerializerMethodField()
-    last_correct_answers = serializers.SerializerMethodField()
-    last_total_questions = serializers.SerializerMethodField()
-    last_attempted_score = serializers.SerializerMethodField()
-
-    class Meta:
-        model = StudyTopic
-        fields = [
-            'id', 'title', 'description', 'thumbnail',
-            'material_count', 'question_count', 'completed_count', 'last_correct_answers', 'last_total_questions', 'last_attempted_score', 'materials', 'created_at',
-        ]
-
-    def get_completed_count(self, obj):
-        request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            return 0
-        return UserMaterialProgress.objects.filter(
-            user=request.user,
-            material__topic=obj,
-            is_completed=True
-        ).count()
-
-    def get_last_correct_answers(self, obj):
-        return super().get_last_correct_answers(obj)
-
-    def get_last_total_questions(self, obj):
-        return super().get_last_total_questions(obj)
-
-    def get_last_attempted_score(self, obj):
-        return super().get_last_attempted_score(obj)
-
-
 class StudyTopicListSerializer(TopicAttemptStatsMixin, serializers.ModelSerializer):
     """Lightweight — no nested materials, just counts + quiz stats."""
     material_count = serializers.IntegerField(read_only=True)
@@ -220,10 +154,6 @@ class StudyTopicListSerializer(TopicAttemptStatsMixin, serializers.ModelSerializ
 
     def get_last_attempted_score(self, obj):
         return super().get_last_attempted_score(obj)
-
-
-class MarkMaterialCompleteSerializer(serializers.Serializer):
-    material_id = serializers.IntegerField()
 
 
 # ── Quiz Serializers ──────────────────────────────────────────
@@ -279,17 +209,6 @@ class QuizAnswerSubmitSerializer(serializers.Serializer):
     selected_option = serializers.ChoiceField(choices=['A', 'B', 'C', 'D'])
 
 
-class TopicQuizSubmitSerializer(serializers.Serializer):
-    """User submits all answers for a topic at once."""
-    topic_id = serializers.IntegerField()
-    answers = QuizAnswerSubmitSerializer(many=True)
-
-    def validate_answers(self, value):
-        if len(value) == 0:
-            raise serializers.ValidationError("At least one answer is required.")
-        return value
-
-
 # Legacy serializer kept for backward compatibility
 class QuizSubmitSerializer(serializers.Serializer):
     """User submits all answers at once."""
@@ -300,98 +219,6 @@ class QuizSubmitSerializer(serializers.Serializer):
         if len(value) == 0:
             raise serializers.ValidationError("At least one answer is required.")
         return value
-
-
-class QuizAttemptSerializer(serializers.ModelSerializer):
-    score_percentage = serializers.FloatField(read_only=True)
-    topic_id = serializers.IntegerField(source='topic.id', read_only=True)
-    topic_title = serializers.CharField(source='topic.title', read_only=True)
-
-    class Meta:
-        model = QuizAttempt
-        fields = [
-            'id', 'topic', 'topic_id', 'topic_title',
-            'score', 'total_questions', 'score_percentage', 'completed_at',
-        ]
-
-
-class QuizAttemptDetailSerializer(serializers.ModelSerializer):
-    """Full attempt with per-answer results."""
-    score_percentage = serializers.FloatField(read_only=True)
-    topic_title = serializers.CharField(source='topic.title', read_only=True)
-    answers = serializers.SerializerMethodField()
-
-    class Meta:
-        model = QuizAttempt
-        fields = [
-            'id', 'topic', 'topic_title', 'score',
-            'total_questions', 'score_percentage', 'completed_at', 'answers',
-        ]
-
-    def get_answers(self, obj):
-        return [
-            {
-                'question_id': a.question.id,
-                'question_text': a.question.text,
-                'selected_option': a.selected_option,
-                'correct_option': a.question.correct_option,
-                'is_correct': a.is_correct,
-            }
-            for a in obj.answers.select_related('question').all()
-        ]
-
-
-class TopicQuizHistorySerializer(TopicAttemptStatsMixin, serializers.ModelSerializer):
-    """Returns a topic with all quiz attempts nested under it."""
-    attempts = serializers.SerializerMethodField()
-    total_attempts = serializers.SerializerMethodField()
-    best_score_percentage = serializers.SerializerMethodField()
-    last_attempt = serializers.SerializerMethodField()
-
-    class Meta:
-        model = StudyTopic
-        fields = [
-            'id', 'title', 'description', 'thumbnail',
-            'total_attempts', 'best_score_percentage', 'last_attempt', 'attempts',
-        ]
-
-    def get_attempts(self, obj):
-        attempts = self._get_user_attempts(obj)
-        return [
-            {
-                'id': a.id,
-                'topic_id': a.topic_id,
-                'topic_title': a.topic.title if a.topic else None,
-                'score': a.score,
-                'total_questions': a.total_questions,
-                'score_percentage': a.score_percentage,
-                'completed_at': a.completed_at,
-            }
-            for a in attempts
-        ]
-
-    def get_total_attempts(self, obj):
-        return self._get_user_attempts(obj).count()
-
-    def get_last_attempt(self, obj):
-        last_attempt = self._get_last_attempt(obj)
-        if not last_attempt:
-            return None
-        return {
-            'id': last_attempt.id,
-            'topic_id': last_attempt.topic_id,
-            'topic_title': last_attempt.topic.title if last_attempt.topic else None,
-            'score': last_attempt.score,
-            'total_questions': last_attempt.total_questions,
-            'score_percentage': last_attempt.score_percentage,
-            'completed_at': last_attempt.completed_at,
-        }
-
-    def get_best_score_percentage(self, obj):
-        attempts = self._get_user_attempts(obj)
-        if not attempts.exists():
-            return 0
-        return max(a.score_percentage for a in attempts)
 
 
 # ── Admin Serializers ─────────────────────────────────────────

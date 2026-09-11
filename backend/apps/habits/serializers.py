@@ -1,26 +1,13 @@
 from django.utils import timezone
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
-from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, TemplateCompletion, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
+from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
 
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'name', 'icon', 'is_active']
-
-
-class HabitTemplateSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source='category.name', read_only=True)
-
-    class Meta:
-        model = HabitTemplate
-        fields = [
-            'id', 'category', 'category_name',
-            'activity_name', 'description', 'duration',
-            'is_active', 'created_at',
-        ]
-        read_only_fields = ['id', 'created_at']
 
 
 class HabitSerializer(serializers.ModelSerializer):
@@ -163,47 +150,6 @@ class HabitSummarySerializer(serializers.ModelSerializer):
         material = self._resolve_material(obj)
         return material.material_type if material else None
 
-    @staticmethod
-    def from_template(template, user=None, request=None):
-        """Same list shape as a user habit, using the template's numeric id."""
-        today = timezone.localdate()
-        is_completed = False
-        if user and user.is_authenticated:
-            is_completed = TemplateCompletion.objects.filter(
-                user=user, template=template, completed_date=today
-            ).exists()
-
-        material = HabitMaterial.objects.filter(template=template).first()
-        material_url = None
-        material_type = None
-        if material:
-            material_type = material.material_type
-            if material.material_type == 'video' and material.video_url:
-                material_url = material.video_url
-            elif material.file:
-                file_url = material.file.url
-                # S3/R2 storage returns a fully-qualified https:// URL already;
-                # calling build_absolute_uri() on it would double-prefix the URL.
-                if file_url.startswith(('http://', 'https://')):
-                    material_url = file_url
-                else:
-                    material_url = request.build_absolute_uri(file_url) if request is not None else file_url
-
-        return {
-            'id': template.id,
-            'activity_name': template.activity_name,
-            'description': template.description,
-            'category_name': template.category.name if template.category else None,
-            'category_icon': template.category.icon if template.category else '',
-            'duration': template.duration,
-            'is_active': template.is_active,
-            'schedule_time': None,
-            'is_completed_today': is_completed,
-            'material_url': material_url,
-            'material_type': material_type,
-            'created_at': template.created_at,
-        }
-
 
 class HabitReminderSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
@@ -224,18 +170,6 @@ class HabitCompletionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HabitCompletion
-        fields = ['id', 'habit', 'habit_name', 'category_name', 'completed_date', 'created_at']
-        read_only_fields = ['id', 'completed_date', 'created_at']
-
-
-class TemplateCompletionSerializer(serializers.ModelSerializer):
-    habit = serializers.IntegerField(source='template_id', read_only=True)
-    habit_name = serializers.CharField(source='template.activity_name', read_only=True)
-    category_name = serializers.CharField(source='template.category.name', read_only=True)
-    created_at = serializers.DateTimeField(read_only=True)
-
-    class Meta:
-        model = TemplateCompletion
         fields = ['id', 'habit', 'habit_name', 'category_name', 'completed_date', 'created_at']
         read_only_fields = ['id', 'completed_date', 'created_at']
 
@@ -282,19 +216,6 @@ class AdminHabitSerializer(serializers.ModelSerializer):
             'is_active', 'schedule_time', 'created_at',
         ]
         read_only_fields = ['id', 'user', 'created_at']
-
-
-class AdminHabitTemplateSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source='category.name', read_only=True)
-
-    class Meta:
-        model = HabitTemplate
-        fields = [
-            'id', 'category', 'category_name',
-            'activity_name', 'description', 'duration',
-            'is_active', 'created_at', 'updated_at',
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 class HabitMaterialSerializer(serializers.ModelSerializer):

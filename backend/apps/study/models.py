@@ -90,6 +90,9 @@ class Quiz(models.Model):
     class Meta:
         db_table = 'quizzes'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['is_active', 'is_selected']),
+        ]
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -166,6 +169,10 @@ class QuizAttempt(models.Model):
     class Meta:
         db_table = 'quiz_attempts'
         ordering = ['-completed_at']
+        indexes = [
+            models.Index(fields=['user', 'quiz', '-completed_at']),
+            models.Index(fields=['user', 'topic', '-completed_at']),
+        ]
 
     @property
     def score_percentage(self):
