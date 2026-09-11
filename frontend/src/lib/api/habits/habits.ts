@@ -12,6 +12,33 @@ export type HabitQuery = {
 export const listHabits = (query?: HabitQuery) =>
   requestJson("/api/admin/habits/", { query }).then(extractData);
 
+export type AdminHabitPayload = {
+  category: number;
+  activity_name: string;
+  description?: string;
+  duration?: number | null;
+  is_active?: boolean;
+  schedule_time?: string | null;
+};
+
+export const listAdminHabits = (query?: HabitQuery) =>
+  requestJson("/api/admin/habits/", { query }).then(extractData);
+
+export const createAdminHabit = (data: AdminHabitPayload) =>
+  requestJson("/api/admin/habits/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }).then(extractData);
+
+export const updateAdminHabit = (id: number, data: Partial<AdminHabitPayload>) =>
+  requestJson(`/api/admin/habits/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  }).then(extractData);
+
+export const deleteAdminHabit = (id: number) =>
+  requestJson(`/api/admin/habits/${id}/`, { method: "DELETE" });
+
 export type AdminHabit = {
   id: number;
   user: number;

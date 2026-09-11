@@ -8,6 +8,10 @@ export { deleteMessage, listMessages } from "./community/messages";
 export { getDashboardStats } from "./dashboard/dashboard";
 export {
   listHabits,
+  listAdminHabits,
+  createAdminHabit,
+  updateAdminHabit,
+  deleteAdminHabit,
   listHabitTemplates,
   createHabitTemplate,
   updateHabitTemplate,

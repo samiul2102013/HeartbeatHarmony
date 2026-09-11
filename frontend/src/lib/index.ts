@@ -10,6 +10,10 @@ export { deleteMessage, listMessages } from "./api/community/messages";
 export { getDashboardStats } from "./api/dashboard/dashboard";
 export {
   listHabits,
+  listAdminHabits,
+  createAdminHabit,
+  updateAdminHabit,
+  deleteAdminHabit,
   listHabitTemplates,
   createHabitTemplate,
   updateHabitTemplate,

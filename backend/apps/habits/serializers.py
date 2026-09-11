@@ -46,12 +46,16 @@ class HabitSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'category_detail', 'is_completed_today', 'material_url', 'material_type']
 
     def _completion_user(self):
-        return self.context.get('resolved_user') or self.context.get('request').user
+        request = self.context.get('request')
+        return getattr(request, 'user', None)
 
     def get_is_completed_today(self, obj):
         user = self._completion_user()
-        if not user or not getattr(user, 'is_authenticated', True):
+        if not user or not getattr(user, 'is_authenticated', False):
             return False
+        prefetched = getattr(obj, 'today_completions', None)
+        if prefetched is not None:
+            return len(prefetched) > 0
         today = timezone.localdate()
         return HabitCompletion.objects.filter(
             user=user, habit=obj, completed_date=today
@@ -87,7 +91,9 @@ class HabitSerializer(serializers.ModelSerializer):
         return material.material_type if material else None
 
     def create(self, validated_data):
-        validated_data['user'] = self.context.get('resolved_user') or self.context['request'].user
+        validated_data.pop('template_id', None)
+        request = self.context.get('request')
+        validated_data['user'] = getattr(request, 'user', None)
         try:
             return super().create(validated_data)
         except DjangoValidationError as e:
@@ -113,12 +119,16 @@ class HabitSummarySerializer(serializers.ModelSerializer):
         ]
 
     def _completion_user(self):
-        return self.context.get('resolved_user') or self.context.get('request').user
+        request = self.context.get('request')
+        return getattr(request, 'user', None)
 
     def get_is_completed_today(self, obj):
         user = self._completion_user()
-        if not user or not getattr(user, 'is_authenticated', True):
+        if not user or not getattr(user, 'is_authenticated', False):
             return False
+        prefetched = getattr(obj, 'today_completions', None)
+        if prefetched is not None:
+            return len(prefetched) > 0
         today = timezone.localdate()
         return HabitCompletion.objects.filter(
             user=user, habit=obj, completed_date=today
@@ -271,7 +281,7 @@ class AdminHabitSerializer(serializers.ModelSerializer):
             'activity_name', 'description', 'duration',
             'is_active', 'schedule_time', 'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']
 
 
 class AdminHabitTemplateSerializer(serializers.ModelSerializer):

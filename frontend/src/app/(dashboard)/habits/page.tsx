@@ -30,12 +30,12 @@ import {
 
 import {
   listCategories,
-  listHabitTemplates,
-  createHabitTemplate,
-  updateHabitTemplate,
-  deleteHabitTemplate,
+  listAdminHabits,
+  createAdminHabit,
+  updateAdminHabit,
+  deleteAdminHabit,
 } from "@/lib/index";
-import type { AdminCategory, HabitTemplate } from "@/lib/index";
+import type { AdminCategory, AdminHabit } from "@/lib/index";
 
 function normalizeResponse<T>(res: unknown): T[] {
   if (!res) return [];
@@ -55,7 +55,7 @@ type HabitRow = {
   status: "Active" | "Inactive";
 };
 
-function mapTemplate(t: HabitTemplate): HabitRow {
+function mapTemplate(t: AdminHabit): HabitRow {
   return {
     id: t.id,
     category: t.category_name || "Uncategorized",
@@ -75,7 +75,7 @@ export default function HabitsPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<HabitTemplate | null>(null);
+  const [editTarget, setEditTarget] = useState<AdminHabit | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -83,11 +83,11 @@ export default function HabitsPage() {
       setError(null);
       const [catRes, habitRes] = await Promise.all([
         listCategories(),
-        listHabitTemplates(selectedCategory !== "all" ? { category: Number(selectedCategory) } : undefined),
+        listAdminHabits(selectedCategory !== "all" ? { category: Number(selectedCategory) } : undefined),
       ]);
       const cats = normalizeResponse<AdminCategory>(catRes);
       setCategories(cats);
-      const templates = normalizeResponse<HabitTemplate>(habitRes);
+      const templates = normalizeResponse<AdminHabit>(habitRes);
       setHabits(templates.map(mapTemplate));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load habits");
@@ -116,7 +116,7 @@ export default function HabitsPage() {
     duration: number;
     is_active: boolean;
   }) => {
-    await createHabitTemplate(data);
+    await createAdminHabit(data);
     await loadData();
   };
 
@@ -128,7 +128,7 @@ export default function HabitsPage() {
     duration: number;
     is_active: boolean;
   }) => {
-    await updateHabitTemplate(data.id, {
+    await updateAdminHabit(data.id, {
       category: data.category,
       activity_name: data.activity_name,
       description: data.description,
@@ -144,7 +144,7 @@ export default function HabitsPage() {
     if (!current) return;
     try {
       setError(null);
-      await updateHabitTemplate(id, { is_active: current.status !== "Active" });
+      await updateAdminHabit(id, { is_active: current.status !== "Active" });
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update status");
@@ -154,7 +154,7 @@ export default function HabitsPage() {
   const handleDelete = async (id: number) => {
     try {
       setError(null);
-      await deleteHabitTemplate(id);
+      await deleteAdminHabit(id);
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to delete habit template");
@@ -166,7 +166,7 @@ export default function HabitsPage() {
       <div>
         <h1 className="text-xl font-semibold text-foreground">Habits</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Manage prebuilt habits under each category for users to adopt.
+          Manage habits in the shared habits table — admin rows show first for all users.
         </p>
       </div>
 

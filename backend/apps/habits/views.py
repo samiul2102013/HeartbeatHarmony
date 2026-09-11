@@ -4,13 +4,12 @@ from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from django.db.models import Count, Prefetch, Case, When, Value, IntegerField
+from django.db.models import Count, Prefetch, Case, When, Value, IntegerField, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
-from django.contrib.auth import get_user_model
 
 from .models import Category, Habit, HabitCompletion, HabitTemplate, HabitMaterial, TemplateCompletion, FREE_HABIT_LIMIT, DAILY_COMPLETION_LIMIT
-from .utils import get_adopted_template_ids, resolve_user_habit, is_user_premium
+from .utils import is_user_premium
 from .serializers import (
     CategorySerializer, HabitSerializer, HabitSummarySerializer,
     HabitCompletionSerializer, TemplateCompletionSerializer, HabitReminderSerializer,
@@ -20,18 +19,6 @@ from .serializers import (
 )
 from apps.core.permissions import IsAdminRole
 from apps.core.response_utils import StandardizedResponseMixin, success_response, error_response
-
-
-# ── Testing helper: bypass auth by falling back to first user ──
-
-def _resolve_user(request):
-    """Return authenticated user, or first DB user for unauthenticated testing."""
-    if request.user.is_authenticated:
-        return request.user
-    user = get_user_model().objects.first()
-    if not user:
-        raise Exception('No users in database for testing.')
-    return user
 
 
 # ── User / Mobile Views ───────────────────────────────────────
@@ -50,7 +37,13 @@ class CategoryListView(generics.ListAPIView):
 
 
 class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView):
-    permission_classes = [permissions.AllowAny]
+    """Single unified feed over one `habits` table.
+
+    Sort: 1. admin-created habits, 2. request.user's own habits,
+    3. all other users' habits. Completions stay per-user via
+    HabitCompletion(user=request.user, habit=...).
+    """
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category']
 
@@ -59,47 +52,38 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
             return HabitSerializer
         return HabitSummarySerializer
 
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx['resolved_user'] = _resolve_user(self.request)
-        return ctx
-
     def get_queryset(self):
-        queryset = Habit.objects.filter(
-            user=_resolve_user(self.request), is_active=True
-        ).select_related('category').prefetch_related(
-            Prefetch('material', queryset=HabitMaterial.objects.all())
+        user = self.request.user
+        today = timezone.localdate()
+        return (
+            Habit.objects.filter(is_active=True)
+            .select_related('category', 'user')
+            .prefetch_related(
+                Prefetch('material', queryset=HabitMaterial.objects.all()),
+                Prefetch(
+                    'completions',
+                    queryset=HabitCompletion.objects.filter(
+                        user=user, completed_date=today
+                    ).only('id', 'habit_id'),
+                    to_attr='today_completions',
+                ),
+            )
+            .annotate(
+                section=Case(
+                    When(Q(user__is_staff=True) | Q(user__role='admin'), then=Value(0)),
+                    When(user=user, then=Value(1)),
+                    default=Value(2),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by('section', '-created_at')
         )
 
-        # Explicitly filter by category if provided
-        category_id = self.request.query_params.get('category')
-        if category_id:
-            queryset = queryset.filter(category_id=category_id)
-
-        return queryset
-
     def list(self, request, *args, **kwargs):
-        user = _resolve_user(request)
+        user = request.user
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(queryset, many=True)
-
-        # Admin templates not yet adopted — same response shape, numeric id
-        adopted_template_ids = get_adopted_template_ids(user)
-        template_qs = HabitTemplate.objects.filter(is_active=True).select_related('category')
-        category_id = request.query_params.get('category')
-        if category_id:
-            template_qs = template_qs.filter(category_id=category_id)
-        if adopted_template_ids:
-            template_qs = template_qs.exclude(id__in=adopted_template_ids)
-
-        user_habit_ids = {h['id'] for h in serializer.data}
-        template_habits = [
-            HabitSummarySerializer.from_template(t, user=user, request=request)
-            for t in template_qs
-            if t.id not in user_habit_ids
-        ]
-
-        all_habits = template_habits + list(serializer.data)
+        all_habits = list(serializer.data)
 
         today = timezone.localdate()
         habit_comp_today = HabitCompletion.objects.filter(
@@ -111,6 +95,7 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
         completions_today = habit_comp_today + template_comp_today
 
         is_pro = is_user_premium(user)
+        own_count = Habit.objects.filter(user=user, is_active=True).count()
         count = len(all_habits)
         return success_response(
             {
@@ -118,7 +103,7 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
                 'count': count,
                 'limit': FREE_HABIT_LIMIT,
                 'is_pro': is_pro,
-                'can_create': is_pro or count < FREE_HABIT_LIMIT,
+                'can_create': is_pro or own_count < FREE_HABIT_LIMIT,
                 'daily_completions': completions_today,
                 'daily_completion_limit': DAILY_COMPLETION_LIMIT,
                 'can_complete': is_pro or completions_today < DAILY_COMPLETION_LIMIT,
@@ -138,27 +123,31 @@ class HabitListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView)
 
 class HabitDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):
     serializer_class = HabitSerializer
-    permission_classes = [permissions.AllowAny]
-
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx['resolved_user'] = _resolve_user(self.request)
-        return ctx
+class HabitDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):
+    """Read any visible habit; write only own habit or admin."""
+    serializer_class = HabitSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Habit.objects.filter(user=_resolve_user(self.request)).prefetch_related(
-            Prefetch('material', queryset=HabitMaterial.objects.all())
+        return Habit.objects.filter(is_active=True).select_related(
+            'category', 'user'
+        ).prefetch_related(
+            Prefetch('material', queryset=HabitMaterial.objects.all()),
         )
 
-    def get_object(self):
-        user = _resolve_user(self.request)
-        habit, err = resolve_user_habit(user, self.kwargs['pk'])
-        if err:
-            from rest_framework.exceptions import NotFound
-            raise NotFound(err)
-        return habit
+    def _check_write(self, obj):
+        user = self.request.user
+        is_admin = user.is_staff or getattr(user, 'role', None) == 'admin'
+        if obj.user_id != user.id and not is_admin:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You can only modify your own habits.')
+
+    def perform_update(self, serializer):
+        self._check_write(self.get_object())
+        serializer.save()
 
     def perform_destroy(self, instance):
+        self._check_write(instance)
         # Soft delete
         instance.is_active = False
         instance.save(update_fields=['is_active'])
@@ -167,28 +156,30 @@ class HabitDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyA
 class HabitMarkDoneView(StandardizedResponseMixin, APIView):
     """
     POST /habits/<pk>/done/
-    User marks a habit or template as done for today.
-    Enforces the 3 completions/day limit across all categories.
+    Mark any visible habit done for today. Completion is per-user:
+    HabitCompletion(user=request.user, habit=<pk>), so one user's done
+    never flips another user's state. Habit stays visible with
+    is_completed_today=true until the next day.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        user = _resolve_user(request)
+        user = request.user
         today = timezone.localdate()
 
-        habit, err = resolve_user_habit(user, pk)
+        habit = Habit.objects.filter(pk=pk, is_active=True).first()
         if habit:
-            # User's own habit
             if HabitCompletion.objects.filter(user=user, habit=habit, completed_date=today).exists():
                 return error_response('This habit is already marked as done for today.')
         else:
-            # Not a user habit — check if it's a template
+            # Backward compat: old clients may still send a template id
+            # (template and habit ids used to share one list).
             template = HabitTemplate.objects.filter(pk=pk, is_active=True).first()
             if template:
                 if TemplateCompletion.objects.filter(user=user, template=template, completed_date=today).exists():
                     return error_response('This habit is already marked as done for today.')
             else:
-                return error_response(err or 'Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
+                return error_response('Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
 
         habit_comp_today = HabitCompletion.objects.filter(
             user=user, completed_date=today
@@ -232,15 +223,15 @@ class HabitMarkDoneView(StandardizedResponseMixin, APIView):
 class HabitUndoView(StandardizedResponseMixin, APIView):
     """
     DELETE /habits/<pk>/undo/
-    Undo today's completion for a habit or template.
+    Undo request.user's own completion for today on any visible habit.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request, pk):
-        user = _resolve_user(request)
+        user = request.user
         today = timezone.localdate()
 
-        habit, err = resolve_user_habit(user, pk)
+        habit = Habit.objects.filter(pk=pk, is_active=True).first()
         if habit:
             deleted, _ = HabitCompletion.objects.filter(
                 user=user, habit=habit, completed_date=today
@@ -248,7 +239,7 @@ class HabitUndoView(StandardizedResponseMixin, APIView):
         else:
             template = HabitTemplate.objects.filter(pk=pk, is_active=True).first()
             if not template:
-                return error_response(err or 'Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
+                return error_response('Habit not found.', status_code=status.HTTP_404_NOT_FOUND)
             deleted, _ = TemplateCompletion.objects.filter(
                 user=user, template=template, completed_date=today
             ).delete()
@@ -282,10 +273,10 @@ class DailyHabitStatusView(StandardizedResponseMixin, APIView):
     GET /habits/daily-status/
     Returns today's completion summary for the authenticated user.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        user = _resolve_user(request)
+        user = request.user
         today = timezone.localdate()
         habit_completions = HabitCompletion.objects.filter(
             user=user, completed_date=today
@@ -324,20 +315,15 @@ class HabitReminderListView(StandardizedResponseMixin, generics.ListAPIView):
     GET /habits/reminders/
     Returns all active habits for the user that have a reminder_time set, ordered by time.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = HabitSerializer
     pagination_class = None
 
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx['resolved_user'] = _resolve_user(self.request)
-        return ctx
-
     def get_queryset(self):
-        user = _resolve_user(self.request)
+        user = self.request.user
         return Habit.objects.filter(
-            user=user, 
-            is_active=True, 
+            user=user,
+            is_active=True,
             reminder_time__isnull=False
         ).order_by('reminder_time')
 
@@ -412,7 +398,8 @@ class AdminCategoryDetailView(StandardizedResponseMixin, generics.RetrieveUpdate
         return self.update(request, *args, **kwargs)
 
 
-class AdminHabitListView(StandardizedResponseMixin, generics.ListAPIView):
+class AdminHabitListView(StandardizedResponseMixin, generics.ListCreateAPIView):
+    """Admin creates habits in the same `habits` table (user=admin)."""
     queryset = Habit.objects.select_related('user', 'category').order_by('-created_at')
     serializer_class = AdminHabitSerializer
     permission_classes = [IsAdminRole]
@@ -420,6 +407,20 @@ class AdminHabitListView(StandardizedResponseMixin, generics.ListAPIView):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['category', 'is_active']
     search_fields = ['user__username', 'activity_name']
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class AdminHabitDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):
+    queryset = Habit.objects.select_related('user', 'category')
+    serializer_class = AdminHabitSerializer
+    permission_classes = [IsAdminRole]
+
+    def put(self, request, *args, **kwargs):
+        # Allow the frontend to submit only changed fields on edit.
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
 
 
 class AdminHabitTemplateListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView):
@@ -448,7 +449,7 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
-        user = _resolve_user(self.request)
+        user = self.request.user
         if user.is_staff or getattr(user, 'role', None) == 'admin':
             return AdminHabitMaterialSerializer
         return HabitMaterialSerializer
@@ -464,7 +465,7 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
         habit_id = self.request.query_params.get('habit')
         if habit_id:
             queryset = queryset.filter(habit_id=habit_id)
-        user = _resolve_user(self.request)
+        user = self.request.user
         if not (user.is_staff or getattr(user, 'role', None) == 'admin'):
             queryset = queryset.filter(
                 models.Q(habit__user=user) | models.Q(template__isnull=False)
@@ -472,7 +473,7 @@ class HabitMaterialListCreateView(StandardizedResponseMixin, generics.ListCreate
         return queryset
 
     def perform_create(self, serializer):
-        user = _resolve_user(self.request)
+        user = self.request.user
         habit = serializer.validated_data.get('habit')
         habit_template = serializer.validated_data.pop('habit_template', None)
 
@@ -509,14 +510,14 @@ class HabitMaterialDetailView(StandardizedResponseMixin, generics.RetrieveUpdate
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
-        user = _resolve_user(self.request)
+        user = self.request.user
         if user.is_staff or getattr(user, 'role', None) == 'admin':
             return AdminHabitMaterialSerializer
         return HabitMaterialSerializer
 
     def get_queryset(self):
         queryset = HabitMaterial.objects.select_related('habit', 'habit__user', 'template')
-        user = _resolve_user(self.request)
+        user = self.request.user
         if not (user.is_staff or getattr(user, 'role', None) == 'admin'):
             queryset = queryset.filter(
                 models.Q(habit__user=user) | models.Q(template__isnull=False)
@@ -549,7 +550,7 @@ class HabitMaterialByHabitView(StandardizedResponseMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
-        user = _resolve_user(request)
+        user = request.user
         is_admin = user.is_staff or getattr(user, 'role', None) == 'admin'
 
         # Try to find by habit first

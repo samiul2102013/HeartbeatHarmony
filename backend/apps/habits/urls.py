@@ -26,6 +26,7 @@ urlpatterns = [
     re_path(r'^admin/categories/?$', views.AdminCategoryListCreateView.as_view()),
     re_path(r'^admin/categories/(?P<pk>\d+)/?$', views.AdminCategoryDetailView.as_view()),
     re_path(r'^admin/habits/?$', views.AdminHabitListView.as_view()),
+    re_path(r'^admin/habits/(?P<pk>\d+)/?$', views.AdminHabitDetailView.as_view()),
     re_path(r'^admin/habit-templates/?$', views.AdminHabitTemplateListCreateView.as_view()),
     re_path(r'^admin/habit-templates/(?P<pk>\d+)/?$', views.AdminHabitTemplateDetailView.as_view()),
     re_path(r'^admin/habit-materials/?$', views.HabitMaterialListCreateView.as_view()),
