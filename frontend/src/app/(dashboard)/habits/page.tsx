@@ -61,7 +61,7 @@ function mapTemplate(t: AdminHabit): HabitRow {
     category: t.category_name || "Uncategorized",
     category_name: t.category_name || undefined,
     activity_name: t.activity_name,
-    duration: t.duration,
+    duration: t.duration ?? 0,
     status: t.is_active ? "Active" : "Inactive",
   };
 }
