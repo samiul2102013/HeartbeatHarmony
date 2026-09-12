@@ -68,12 +68,23 @@ DATABASES = {
     )
 }
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'hartbeat-harmony-cache',
+REDIS_URL = os.getenv('REDIS_URL')
+
+if REDIS_URL:
+    # Shared cache across all gunicorn workers (locmem would fragment per-process).
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
+        }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'hartbeat-harmony-cache',
+        }
+    }
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -157,8 +168,6 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
 # Channels
 ASGI_APPLICATION = 'config.asgi.application'
-
-REDIS_URL = os.getenv('REDIS_URL')
 
 if REDIS_URL:
     CHANNEL_LAYERS = {

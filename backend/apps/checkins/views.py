@@ -3,7 +3,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.core.cache import caches
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -223,6 +223,10 @@ class AdminDashboardView(StandardizedResponseMixin, APIView):
     permission_classes = [IsAdminRole]
 
     def get(self, request):
+        cache = caches['default']
+        cached = cache.get('admin:dashboard:v1')
+        if cached is not None:
+            return success_response(cached)
 
         thirty_days_ago = timezone.now() - datetime.timedelta(days=30)
 
@@ -245,12 +249,14 @@ class AdminDashboardView(StandardizedResponseMixin, APIView):
 
         user_insights = User.objects.aggregate(
             total=Count('id'),
-            active=Count('id', filter=__import__('django.db.models', fromlist=['Q']).Q(is_active=True)),
-            pro=Count('id', filter=__import__('django.db.models', fromlist=['Q']).Q(plan='pro')),
+            active=Count('id', filter=Q(is_active=True)),
+            pro=Count('id', filter=Q(plan='pro')),
         )
 
-        return success_response({
+        data = {
             'heart_balance_trend': list(trend),
             'mood_distribution': list(mood_distribution),
             'user_insights': user_insights,
-        })
+        }
+        cache.set('admin:dashboard:v1', data, 60)
+        return success_response(data)
