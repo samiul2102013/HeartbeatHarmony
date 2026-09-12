@@ -14,7 +14,7 @@ exec gunicorn config.asgi:application \
     -k uvicorn.workers.UvicornWorker \
     -b 0.0.0.0:8005 \
     -w ${GUNICORN_WORKERS:-4} \
-    --timeout 300 \
+    --timeout 900 \
     --max-requests 10000 \
     --max-requests-jitter 2000 \
     --access-logfile - \

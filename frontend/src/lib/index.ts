@@ -38,7 +38,7 @@ export { listAttempts } from "./api/study/attempts";
 export { createQuestion, deleteQuestion, getQuestion, listQuestions, updateQuestion } from "./api/study/questions";
 export { createQuiz, deleteQuiz, getQuiz, listQuizzes, updateQuiz } from "./api/study/quizzes";
 export { createTopic, deleteTopic, getTopic, listTopics, updateTopic } from "./api/study/topics";
-export { createMaterial, deleteMaterial, getMaterial, listMaterials, updateMaterial } from "./api/study/materials";
+export { createMaterial, createMaterialWithProgress, deleteMaterial, getMaterial, listMaterials, updateMaterial, updateMaterialWithProgress } from "./api/study/materials";
 
 export type { AdminCheckIn, CheckinQuery } from "./api/checkins/checkins";
 export type { AdminCreateUserPayload, AdminUser, PaginatedUsers, UserQuery, UserUpdatePayload } from "./api/accounts/users";

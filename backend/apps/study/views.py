@@ -249,32 +249,44 @@ class AdminStudyMaterialListCreateView(StandardizedResponseMixin, generics.ListC
 
     def perform_create(self, serializer):
         material = serializer.save()
-        
-        from apps.accounts.models import User
-        from apps.notifications.models import Notification
-        from apps.community.socketio_server import broadcast_event_sync
-        
-        users = User.objects.exclude(id=self.request.user.id).filter(is_active=True)
-        title = "New Study Material"
-        message = f"A new study material has been uploaded: {material.title}."
-        
-        notifications = [
-            Notification(
-                user=user,
-                title=title,
-                message=message,
-                notification_type='study'
-            ) for user in users
-        ]
-        Notification.objects.bulk_create(notifications)
+        material_title = material.title
+        actor_id = self.request.user.id
 
-        from apps.community.socketio_server import COMMUNITY_GROUP
-        broadcast_event_sync(COMMUNITY_GROUP, 'notification', {
-            'title': title,
-            'message': message,
-            'text': message,
-            'notification_type': 'study'
-        })
+        def _fanout():
+            # Runs off-request so the upload response returns immediately.
+            # Only plain values cross the thread boundary — never ORM objects.
+            try:
+                from apps.accounts.models import User
+                from apps.notifications.models import Notification
+                from apps.community.socketio_server import broadcast_event_sync
+
+                users = User.objects.exclude(id=actor_id).filter(is_active=True)
+                title = "New Study Material"
+                message = f"A new study material has been uploaded: {material_title}."
+
+                notifications = [
+                    Notification(
+                        user=user,
+                        title=title,
+                        message=message,
+                        notification_type='study'
+                    ) for user in users
+                ]
+                Notification.objects.bulk_create(notifications)
+
+                from apps.community.socketio_server import COMMUNITY_GROUP
+                broadcast_event_sync(COMMUNITY_GROUP, 'notification', {
+                    'title': title,
+                    'message': message,
+                    'text': message,
+                    'notification_type': 'study'
+                })
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception("study material fan-out failed")
+
+        import threading
+        threading.Thread(target=_fanout, daemon=True).start()
 
 
 class AdminStudyMaterialDetailView(StandardizedResponseMixin, generics.RetrieveUpdateDestroyAPIView):
