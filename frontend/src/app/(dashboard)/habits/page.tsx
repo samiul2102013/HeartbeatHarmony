@@ -66,6 +66,15 @@ function mapTemplate(t: AdminHabit): HabitRow {
   };
 }
 
+type HabitEditTarget = {
+  id: number;
+  category: number;
+  activity_name: string;
+  description: string;
+  duration: number;
+  is_active: boolean;
+};
+
 export default function HabitsPage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -75,7 +84,7 @@ export default function HabitsPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<AdminHabit | null>(null);
+  const [editTarget, setEditTarget] = useState<HabitEditTarget | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -285,12 +294,10 @@ export default function HabitsPage() {
                             setEditTarget({
                               id: habit.id,
                               category: categories.find((c) => c.name === habit.category)?.id || 0,
-                              category_name: habit.category_name || habit.category,
                               activity_name: habit.activity_name,
                               description: "",
                               duration: habit.duration,
                               is_active: habit.status === "Active",
-                              created_at: "",
                             });
                             setEditOpen(true);
                           }}
@@ -333,18 +340,7 @@ export default function HabitsPage() {
           if (!value) setEditTarget(null);
         }}
         categories={categories.map((c) => ({ id: c.id, name: c.name }))}
-        initial={
-          editTarget
-            ? {
-                id: editTarget.id,
-                category: editTarget.category,
-                activity_name: editTarget.activity_name,
-                description: editTarget.description,
-                duration: editTarget.duration,
-                is_active: editTarget.is_active,
-              }
-            : null
-        }
+        initial={editTarget}
         onSubmit={handleEdit}
       />
     </div>
