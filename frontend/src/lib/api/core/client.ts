@@ -170,7 +170,7 @@ export function uploadJsonWithProgress<T = unknown>(
         resolve(payload as T);
       } else {
         if (xhr.status === 413) {
-          reject(new Error("File is too large. Maximum size is 100MB."));
+          reject(new Error("File is too large. Maximum size is 3GB."));
         } else {
           reject(new Error(normalizeError(payload, `${xhr.status} ${xhr.statusText}`)));
         }

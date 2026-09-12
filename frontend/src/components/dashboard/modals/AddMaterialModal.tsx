@@ -15,8 +15,13 @@ type AddMaterialModalProps = {
   open: boolean;
   onOpenChange: (value: boolean) => void;
   topics: TopicOption[];
-  onSubmit?: (data: { title: string; type: string; topicId: number; pdf?: File }) => void | Promise<void>;
+  onSubmit?: (
+    data: { title: string; type: string; topicId: number; pdf?: File },
+    onProgress?: (percent: number) => void
+  ) => void | Promise<void>;
 };
+
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024 * 1024;
 
 export function AddMaterialModal({ open, onOpenChange, topics, onSubmit }: AddMaterialModalProps) {
   const [title, setTitle] = useState("");
@@ -25,6 +30,7 @@ export function AddMaterialModal({ open, onOpenChange, topics, onSubmit }: AddMa
   const [pdf, setPdf] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const selectedTopic = topics.find((t) => String(t.id) === topicId);
 
@@ -35,6 +41,7 @@ export function AddMaterialModal({ open, onOpenChange, topics, onSubmit }: AddMa
     setPdf(null);
     setError(null);
     setSaving(false);
+    setUploadProgress(null);
   };
 
   useEffect(() => {
@@ -60,17 +67,28 @@ export function AddMaterialModal({ open, onOpenChange, topics, onSubmit }: AddMa
       return;
     }
 
+    if (pdf && pdf.size > MAX_UPLOAD_BYTES) {
+      setError("File is too large. Maximum size is 3GB.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
     try {
-      await onSubmit?.({ title: nextTitle, type, topicId: Number(topicId), pdf: pdf ?? undefined });
+      await onSubmit?.(
+        { title: nextTitle, type, topicId: Number(topicId), pdf: pdf ?? undefined },
+        (percent) => {
+          setUploadProgress(percent);
+        }
+      );
       reset();
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create material.");
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -108,15 +126,14 @@ export function AddMaterialModal({ open, onOpenChange, topics, onSubmit }: AddMa
               <SelectContent>
                 <SelectItem value="PDF">PDF</SelectItem>
                 <SelectItem value="Video">Video</SelectItem>
-                <SelectItem value="Text">Text</SelectItem>
               </SelectContent>
             </Select>
           </ModalField>
 
-          <ModalField label={type === "PDF" ? "PDF File" : type === "Text" ? "Text Content" : "File"}>
+          <ModalField label={type === "PDF" ? "PDF File" : "Video File"}>
             <Input
               type="file"
-              accept={type === "PDF" ? ".pdf,application/pdf" : undefined}
+              accept={type === "PDF" ? ".pdf,application/pdf" : "video/*"}
               onChange={(event) => {
                 const file = event.target.files?.[0] ?? null;
                 setPdf(file);
@@ -130,6 +147,20 @@ export function AddMaterialModal({ open, onOpenChange, topics, onSubmit }: AddMa
         </div>
 
         <div className="mt-6">
+          {uploadProgress !== null && (
+            <div className="mb-4 space-y-1.5">
+              <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                <span>Uploading...</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
           <ModalFooter onCancel={() => { reset(); onOpenChange(false); }} confirmLabel="Add Material" onConfirm={handleConfirm} loading={saving} />
         </div>
       </DialogContent>

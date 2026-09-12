@@ -22,8 +22,13 @@ type EditMaterialModalProps = {
     topicId: number;
     topicTitle?: string;
   } | null;
-  onSubmit?: (data: { id: number; title: string; type: string; topicId: number; pdf?: File }) => void | Promise<void>;
+  onSubmit?: (
+    data: { id: number; title: string; type: string; topicId: number; pdf?: File },
+    onProgress?: (percent: number) => void
+  ) => void | Promise<void>;
 };
+
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024 * 1024;
 
 export function EditMaterialModal({ open, onOpenChange, topics, material, onSubmit }: EditMaterialModalProps) {
   const [title, setTitle] = useState("");
@@ -32,6 +37,7 @@ export function EditMaterialModal({ open, onOpenChange, topics, material, onSubm
   const [pdf, setPdf] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const selectedTopic = topics.find((t) => String(t.id) === topicId);
 
@@ -43,6 +49,7 @@ export function EditMaterialModal({ open, onOpenChange, topics, material, onSubm
       setPdf(null);
       setError(null);
       setSaving(false);
+      setUploadProgress(null);
     }
   }, [material, open]);
 
@@ -63,16 +70,27 @@ export function EditMaterialModal({ open, onOpenChange, topics, material, onSubm
       return;
     }
 
+    if (pdf && pdf.size > MAX_UPLOAD_BYTES) {
+      setError("File is too large. Maximum size is 3GB.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
     try {
-      await onSubmit?.({ id: material.id, title: nextTitle, type, topicId: Number(topicId), pdf: pdf ?? undefined });
+      await onSubmit?.(
+        { id: material.id, title: nextTitle, type, topicId: Number(topicId), pdf: pdf ?? undefined },
+        (percent) => {
+          setUploadProgress(percent);
+        }
+      );
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update material.");
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -116,15 +134,17 @@ export function EditMaterialModal({ open, onOpenChange, topics, material, onSubm
               <SelectContent>
                 <SelectItem value="PDF">PDF</SelectItem>
                 <SelectItem value="Video">Video</SelectItem>
-                <SelectItem value="Text">Text</SelectItem>
               </SelectContent>
             </Select>
           </ModalField>
+          {type === "Text" && (
+            <p className="text-xs text-muted-foreground">Legacy text material — pick PDF or Video to convert it.</p>
+          )}
 
-          <ModalField label={type === "PDF" ? "Replace PDF File (optional)" : type === "Text" ? "Replace Text File (optional)" : "Replace File (optional)"}>
+          <ModalField label={type === "PDF" ? "Replace PDF File (optional)" : "Replace Video File (optional)"}>
             <Input
               type="file"
-              accept={type === "PDF" ? ".pdf,application/pdf" : undefined}
+              accept={type === "PDF" ? ".pdf,application/pdf" : "video/*"}
               onChange={(event) => {
                 const file = event.target.files?.[0] ?? null;
                 setPdf(file);
@@ -138,7 +158,21 @@ export function EditMaterialModal({ open, onOpenChange, topics, material, onSubm
         </div>
 
         <div className="mt-6">
-          <ModalFooter onCancel={() => { setPdf(null); setError(null); onOpenChange(false); }} confirmLabel="Save Changes" onConfirm={handleConfirm} loading={saving} />
+          {uploadProgress !== null && (
+            <div className="mb-4 space-y-1.5">
+              <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                <span>Uploading...</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <ModalFooter onCancel={() => { setPdf(null); setError(null); setUploadProgress(null); onOpenChange(false); }} confirmLabel="Save Changes" onConfirm={handleConfirm} loading={saving} />
         </div>
       </DialogContent>
     </Dialog>
