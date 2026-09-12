@@ -249,12 +249,26 @@ class AdminStudyMaterialListCreateView(StandardizedResponseMixin, generics.ListC
 
     def perform_create(self, serializer):
         material = serializer.save()
+        material_id = material.id
         material_title = material.title
         actor_id = self.request.user.id
 
         def _fanout():
             # Runs off-request so the upload response returns immediately.
             # Only plain values cross the thread boundary — never ORM objects.
+            try:
+                from apps.study.models import StudyMaterial
+                from apps.study.video_utils import moov_at_front, run_faststart
+                mat = StudyMaterial.objects.filter(id=material_id).first()
+                if mat is not None and mat.pdf and mat.material_type == 'video':
+                    src = mat.pdf.path
+                    # NOTE: local-disk only. If USE_S3 is ever enabled, download
+                    # to temp, process, and re-upload here instead of in-place replace.
+                    if src.lower().endswith('.mp4') and not moov_at_front(src):
+                        run_faststart(src, src)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception('video faststart failed')
             try:
                 from apps.accounts.models import User
                 from apps.notifications.models import Notification
