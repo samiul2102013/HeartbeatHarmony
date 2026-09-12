@@ -50,10 +50,16 @@ def run_faststart(src, dst, timeout=600):
     """Remux src -> dst with moov at front. Copy codec (no re-encode). Raises on failure."""
     import imageio_ffmpeg
     exe = imageio_ffmpeg.get_ffmpeg_exe()
+    # The tmp name has no video extension and ffmpeg picks the muxer from the
+    # output name, so force MP4 explicitly with -f.
     tmp = dst + '.faststart.tmp'
-    cmd = [exe, '-y', '-i', src, '-c', 'copy', '-movflags', '+faststart', tmp]
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                   timeout=timeout, check=True)
+    cmd = [exe, '-y', '-i', src, '-c', 'copy', '-movflags', '+faststart', '-f', 'mp4', tmp]
+    try:
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                       timeout=timeout, check=True)
+    except subprocess.CalledProcessError as e:
+        tail = (e.stderr or b'')[-2000:].decode('utf-8', errors='replace')
+        raise RuntimeError(f'ffmpeg faststart failed: {tail}')
     if not moov_at_front(tmp) or os.path.getsize(tmp) == 0:
         raise RuntimeError('faststart output failed verification')
     os.replace(tmp, dst)
