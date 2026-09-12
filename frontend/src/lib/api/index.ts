@@ -26,7 +26,7 @@ export { listAttempts } from "./study/attempts";
 export { createQuestion, deleteQuestion, getQuestion, listQuestions, updateQuestion } from "./study/questions";
 export { createQuiz, deleteQuiz, getQuiz, listQuizzes, updateQuiz } from "./study/quizzes";
 export { createTopic, deleteTopic, getTopic, listTopics, updateTopic } from "./study/topics";
-export { createMaterial, deleteMaterial, getMaterial, listMaterials, updateMaterial } from "./study/materials";
+export { createMaterial, createMaterialWithProgress, deleteMaterial, getMaterial, listMaterials, updateMaterial, updateMaterialWithProgress } from "./study/materials";
 
 export type { AdminCheckIn, CheckinQuery } from "./checkins/checkins";
 export type { AdminCreateUserPayload, AdminUser, PaginatedUsers, UserQuery, UserUpdatePayload } from "./accounts/users";

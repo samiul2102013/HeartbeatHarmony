@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AdminMaterial, StudyTopic, createMaterial, deleteMaterial, listMaterials, listTopics, updateMaterial } from "@/lib/index";
+import { AdminMaterial, StudyTopic, createMaterial, createMaterialWithProgress, deleteMaterial, listMaterials, listTopics, updateMaterial, updateMaterialWithProgress } from "@/lib/index";
 import { ChevronDown, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -64,6 +64,7 @@ export default function StudyMaterials() {
   const [topics, setTopics] = useState<StudyTopic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   function normalizeResponse<T>(res: any): T[] {
     const source = res?.data ?? res?.results ?? res?.result ?? res ?? [];
@@ -102,7 +103,10 @@ export default function StudyMaterials() {
     [materials, search]
   );
 
-  const handleCreateMaterial = async (data: { title: string; type: string; topicId: number; pdf?: File }) => {
+  const handleCreateMaterial = async (
+    data: { title: string; type: string; topicId: number; pdf?: File },
+    onProgress?: (percent: number) => void
+  ) => {
     if (!data.topicId) {
       setError("No study topic selected for this material");
       return;
@@ -110,6 +114,7 @@ export default function StudyMaterials() {
 
     try {
       setError(null);
+      const report = onProgress ?? setUploadProgress;
       const formData = new FormData();
       formData.append("topic", String(data.topicId));
       formData.append("title", data.title);
@@ -122,12 +127,17 @@ export default function StudyMaterials() {
         formData.append("pdf", data.pdf);
       }
 
-      const response = await createMaterial(formData);
+      const response = data.pdf
+        ? await createMaterialWithProgress(formData, report)
+        : await createMaterial(formData);
       const created = (response as any)?.data ?? response;
+      setRawMaterials((prev) => [...prev, created as AdminMaterial]);
       setMaterials((prev) => [...prev, mapMaterial(created)]);
       setModalOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create material");
+    } finally {
+      setUploadProgress(null);
     }
   };
 
@@ -142,9 +152,13 @@ export default function StudyMaterials() {
     }
   };
 
-  const handleEditMaterial = async (data: { id: number; title: string; type: string; topicId: number; pdf?: File }) => {
+  const handleEditMaterial = async (
+    data: { id: number; title: string; type: string; topicId: number; pdf?: File },
+    onProgress?: (percent: number) => void
+  ) => {
     try {
       setError(null);
+      const report = onProgress ?? setUploadProgress;
       const formData = new FormData();
       formData.append("topic", String(data.topicId));
       formData.append("title", data.title);
@@ -157,7 +171,9 @@ export default function StudyMaterials() {
         formData.append("pdf", data.pdf);
       }
 
-      const response = await updateMaterial(data.id, formData);
+      const response = data.pdf
+        ? await updateMaterialWithProgress(data.id, formData, report)
+        : await updateMaterial(data.id, formData);
       const updated = (response as any)?.data ?? response;
       setRawMaterials((prev) => prev.map((m) => (m.id === data.id ? (updated as AdminMaterial) : m)));
       setMaterials((prev) => prev.map((m) => (m.id === data.id ? mapMaterial(updated as AdminMaterial) : m)));
@@ -166,6 +182,8 @@ export default function StudyMaterials() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update material");
       throw err;
+    } finally {
+      setUploadProgress(null);
     }
   };
 
@@ -187,6 +205,21 @@ export default function StudyMaterials() {
           <Plus className="h-4 w-4" /> Add New Material
         </Button>
       </div>
+
+      {uploadProgress !== null && (
+        <div className="space-y-1.5 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
+          <div className="flex justify-between text-xs font-medium text-muted-foreground">
+            <span>Uploading...</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+            <div
+              className="h-full bg-primary transition-all duration-300 ease-out"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <Table>
