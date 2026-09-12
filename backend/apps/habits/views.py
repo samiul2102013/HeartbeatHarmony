@@ -335,3 +335,23 @@ class HabitMaterialEditView(HabitMaterialDetailView):
 
 class HabitMaterialDeleteView(HabitMaterialDetailView):
     pass
+
+
+# ── Habit template compatibility aliases ──────────────────────────────
+# The legacy habit_templates table was merged into the unified `habits`
+# table (user=admin rows act as the catalog). The admin dashboard still
+# calls /api/admin/habit-templates/, so these views serve it from `habits`.
+
+class AdminHabitTemplateListCreateView(AdminHabitListView):
+    """List/create template habits from the unified habits table."""
+    queryset = Habit.objects.select_related('user', 'category').filter(
+        user__is_staff=True
+    ).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class AdminHabitTemplateDetailView(AdminHabitDetailView):
+    """Retrieve/update/delete template habits from the unified habits table."""
+    queryset = Habit.objects.select_related('user', 'category')
