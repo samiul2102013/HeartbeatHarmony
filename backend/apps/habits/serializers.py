@@ -20,6 +20,8 @@ class HabitSerializer(serializers.ModelSerializer):
     is_completed_today = serializers.SerializerMethodField()
     material_url = serializers.SerializerMethodField()
     material_type = serializers.SerializerMethodField()
+    is_created_by_user = serializers.SerializerMethodField()
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = Habit
@@ -28,9 +30,10 @@ class HabitSerializer(serializers.ModelSerializer):
             'activity_name', 'description', 'duration',
             'is_active', 'schedule_time', 'reminder_time', 'is_completed_today',
             'material_url', 'material_type',
+            'is_created_by_user', 'is_owner',
             'created_at', 'updated_at', 'template_id',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'category_detail', 'is_completed_today', 'material_url', 'material_type']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'category_detail', 'is_completed_today', 'material_url', 'material_type', 'is_created_by_user', 'is_owner']
 
     def _completion_user(self):
         request = self.context.get('request')
@@ -76,6 +79,16 @@ class HabitSerializer(serializers.ModelSerializer):
     def get_material_type(self, obj):
         material = self._resolve_material(obj)
         return material.material_type if material else None
+
+    def get_is_created_by_user(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+        return obj.user_id == user.id
+
+    def get_is_owner(self, obj):
+        return self.get_is_created_by_user(obj)
 
     def validate_template_id(self, value):
         # Users may adopt a template on create, but never re-link an
@@ -103,13 +116,15 @@ class HabitSummarySerializer(serializers.ModelSerializer):
     is_completed_today = serializers.SerializerMethodField()
     material_url = serializers.SerializerMethodField()
     material_type = serializers.SerializerMethodField()
+    is_created_by_user = serializers.SerializerMethodField()
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = Habit
         fields = [
             'id', 'activity_name', 'description',
             'category_name', 'category_icon', 'duration', 'is_active', 'schedule_time',
-            'is_completed_today', 'material_url', 'material_type', 'created_at',
+            'is_completed_today', 'material_url', 'material_type', 'is_created_by_user', 'is_owner', 'created_at',
         ]
 
     def _completion_user(self):
@@ -156,6 +171,16 @@ class HabitSummarySerializer(serializers.ModelSerializer):
     def get_material_type(self, obj):
         material = self._resolve_material(obj)
         return material.material_type if material else None
+
+    def get_is_created_by_user(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+        return obj.user_id == user.id
+
+    def get_is_owner(self, obj):
+        return self.get_is_created_by_user(obj)
 
 
 class HabitReminderSerializer(serializers.ModelSerializer):
