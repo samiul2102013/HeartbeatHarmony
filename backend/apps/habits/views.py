@@ -190,6 +190,58 @@ class HabitReminderTodayView(StandardizedResponseMixin, generics.ListAPIView):
         return success_response({'reminders': serializer.data, 'count': len(serializer.data)})
 
 
+class UserHabitEditView(StandardizedResponseMixin, generics.RetrieveUpdateAPIView):
+    """"
+    GET/PATCH/PUT /habits/<pk>/edit/
+    Edit a user-created habit only. Admin-created habits (user is
+    staff/admin) are owned by admins and stay read-only for end users —
+    they must go through /api/admin/habits/<pk>/ instead.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = HabitSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        is_admin = user.is_staff or getattr(user, 'role', None) == 'admin'
+        queryset = Habit.objects.select_related('category', 'user')
+        if is_admin:
+            return queryset  # admins manage any habit here
+        return queryset.filter(user=user)
+
+    def put(self, request, *args, **kwargs):
+        # Allow the frontend to submit only changed fields on edit.
+        kwargs['partial'] = True
+        return self.partial_update(request, *args, **kwargs)
+
+
+class UserHabitDeleteView(StandardizedResponseMixin, generics.DestroyAPIView):
+    """
+    DELETE /habits/<pk>/delete/
+    Hard-delete a user-created habit only. Cascade-removes its
+    completions and any attached material. Admin-created habits are
+    protected — deleting those is an admin-dashboard operation.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        is_admin = user.is_staff or getattr(user, 'role', None) == 'admin'
+        queryset = Habit.objects.all()
+        if is_admin:
+            return queryset
+        return queryset.filter(user=user)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.user.is_staff or getattr(instance.user, 'role', None) == 'admin':
+            return error_response(
+                'Admin-created habits cannot be deleted here.',
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+        self.perform_destroy(instance)
+        return success_response(message='Habit deleted successfully.', status_code=status.HTTP_200_OK)
+
+
 # ── Admin Views ───────────────────────────────────────────────
 
 class AdminCategoryListCreateView(StandardizedResponseMixin, generics.ListCreateAPIView):

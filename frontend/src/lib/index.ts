@@ -14,6 +14,8 @@ export {
   createAdminHabit,
   updateAdminHabit,
   deleteAdminHabit,
+  editUserHabit,
+  deleteUserHabit,
   listHabitTemplates,
   createHabitTemplate,
   updateHabitTemplate,
@@ -45,7 +47,7 @@ export type { AdminCreateUserPayload, AdminUser, PaginatedUsers, UserQuery, User
 export type { AdminLoginResponse } from "./api/accounts/auth";
 export type { CategoryPayload, CategoryListResponse, AdminCategory } from "./api/habits/categories";
 export type { HabitTemplate, HabitTemplatePayload } from "./api/habits/habits";
-export type { AdminHabit, HabitQuery } from "./api/habits/habits";
+export type { AdminHabit, HabitQuery, UserHabitPayload } from "./api/habits/habits";
 export type { AdminHabitMaterial, HabitMaterialQuery } from "./api/habits/materials";
 export type { MoodPayload, AdminMood, MoodListResponse } from "./api/checkins/moods";
 export type { FeaturePayload } from "./api/pricing/features";

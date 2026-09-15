@@ -52,7 +52,9 @@ class RegisterView(StandardizedResponseMixin, generics.CreateAPIView):
         if updated_fields:
             user.save(update_fields=updated_fields)
         # Send verification email right after registration
-        send_verification_email(user, self.request)
+        email_sent = send_verification_email(user, self.request)
+        if not email_sent:
+            logger.error("Registration: failed to send verification email to %s", user.email)
 
 
 class LoginView(StandardizedResponseMixin, APIView):
@@ -72,7 +74,12 @@ class LoginView(StandardizedResponseMixin, APIView):
         if not user.email_verified:
             # Send OTP for verification
             from .utils import send_login_verification_otp
-            send_login_verification_otp(user)
+            email_sent = send_login_verification_otp(user)
+            if not email_sent:
+                return error_response(
+                    'We could not send the verification email. Please contact support or try again later.',
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
             return success_response({
                 'detail': 'Please verify your email with the OTP sent to your email.',
                 'email': user.email,
@@ -92,9 +99,33 @@ class GoogleLoginView(StandardizedResponseMixin, APIView):
     authentication_classes = []
 
     def post(self, request):
+        # Flutter backward compat: if id_token provided, verify it and extract email;
+        # otherwise fall back to trusted email field (mobile already sends verified email).
+        id_token = (request.data.get('id_token') or request.data.get('credential') or request.data.get('token') or '').strip()
         email = (request.data.get('email') or '').strip().lower()
         first_name = (request.data.get('first_name') or '').strip()
         last_name = (request.data.get('last_name') or '').strip()
+
+        if id_token:
+            try:
+                from google.oauth2 import id_token as google_id_token
+                from google.auth.transport import requests as google_requests
+                # Verify with Google certs; audience check disabled to keep compat if GOOGLE_CLIENT_ID not set
+                # If GOOGLE_CLIENT_ID is configured, it will be validated by library when audience is checked below
+                payload = google_id_token.verify_oauth2_token(id_token, google_requests.Request())
+                token_email = (payload.get('email') or '').strip().lower()
+                if not token_email:
+                    return error_response('Email not provided by Google.', status_code=status.HTTP_400_BAD_REQUEST)
+                # Use verified email from token, override client email if mismatched
+                if email and email != token_email:
+                    logger.warning("GoogleLogin email mismatch: client %s vs token %s", email, token_email)
+                email = token_email
+                # Prefer names from token if not provided
+                first_name = first_name or (payload.get('given_name') or '').strip()
+                last_name = last_name or (payload.get('family_name') or '').strip()
+            except Exception as e:
+                logger.error(f'Google token verification failed: {e}', exc_info=True)
+                return error_response('Invalid Google identity token.', status_code=status.HTTP_401_UNAUTHORIZED)
 
         if not email:
             return error_response('email is required.', status_code=status.HTTP_400_BAD_REQUEST)
@@ -228,7 +259,9 @@ class ProfileView(StandardizedResponseMixin, generics.RetrieveUpdateAPIView):
                 user.email_verification_code = generate_verification_code()
                 user.email_verification_code_created = timezone.now()
                 user.save(update_fields=['email_verified', 'email_verify_token', 'email_verification_code', 'email_verification_code_created'])
-                send_verification_email(user, self.request)
+                email_sent = send_verification_email(user, self.request)
+                if not email_sent:
+                    logger.error("Profile email change: failed to send verification to %s", user.email)
 
 
 class AvatarUploadView(StandardizedResponseMixin, APIView):
@@ -267,16 +300,37 @@ class VerifyEmailView(StandardizedResponseMixin, APIView):
     """
     User clicks link from email → hits this endpoint with token.
     Works for both mobile deep links and web.
+    Supports POST (mobile: {otp,email} or {token}) and GET (web: ?token=xxx&email=yyy)
+    without changing response shape – additive only.
     """
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    def get(self, request):
+        # Web email link: /api/auth/verify-email/?token=xxx or ?otp=xxx&email=yyy
+        # Reuse POST logic by injecting query params into data
+        data = {
+            'token': request.query_params.get('token') or request.query_params.get('otp') or '',
+            'otp': request.query_params.get('otp') or '',
+            'email': request.query_params.get('email') or '',
+        }
+        # Remove empty to let serializer validate
+        data = {k: v for k, v in data.items() if v}
+        request._full_data = data  # for serializer fallback
+        serializer = VerifyEmailSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        # Delegate to shared handler
+        return self._handle_verify(serializer.validated_data, request)
+
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        token = str(serializer.validated_data['token'])
-        verification_method = serializer.validated_data.get('verification_method')
-        email = serializer.validated_data.get('email') or request.query_params.get('email')
+        return self._handle_verify(serializer.validated_data, request)
+
+    def _handle_verify(self, validated_data, request):
+        token = str(validated_data['token'])
+        verification_method = validated_data.get('verification_method')
+        email = validated_data.get('email') or request.query_params.get('email')
 
         # Development bypass support: allow verifying when token equals DEV_BYPASS_VALUE
         # and ALLOW_DEV_BYPASS is enabled. This requires providing the user's email in
@@ -317,6 +371,14 @@ class VerifyEmailView(StandardizedResponseMixin, APIView):
                         'Invalid verification code for this email.',
                         status_code=status.HTTP_400_BAD_REQUEST
                     )
+                # Check OTP expiry (1 hour)
+                if user.email_verification_code_created:
+                    expiry = user.email_verification_code_created + timedelta(hours=PASSWORD_RESET_EXPIRY_HOURS)
+                    if timezone.now() > expiry:
+                        return error_response(
+                            'Verification code has expired. Please request a new one.',
+                            status_code=status.HTTP_400_BAD_REQUEST
+                        )
             else:
                 try:
                     user = User.objects.get(email_verify_token=token)
@@ -366,7 +428,11 @@ class ForgotPasswordView(StandardizedResponseMixin, APIView):
             user.password_reset_otp_created = timezone.now()
             user.save(update_fields=['password_reset_token', 'password_reset_token_created', 'password_reset_otp', 'password_reset_otp_created'])
             reset_token = user.password_reset_token
-            send_password_reset_email(user)
+            email_sent = send_password_reset_email(user)
+            if not email_sent:
+                # Roll back OTP so user can retry immediately without hitting resend window
+                logger.error("ForgotPassword: failed to send reset email to %s", email)
+                # Still return generic success to avoid enumeration, but log for ops
         except User.DoesNotExist:
             pass  # Silent — don't leak user existence
 

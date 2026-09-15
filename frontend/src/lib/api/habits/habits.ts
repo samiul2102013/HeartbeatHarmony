@@ -39,6 +39,26 @@ export const updateAdminHabit = (id: number, data: Partial<AdminHabitPayload>) =
 export const deleteAdminHabit = (id: number) =>
   requestJson(`/api/admin/habits/${id}/`, { method: "DELETE" });
 
+// ── User habits (mobile feed) ───────────────────────────────
+
+export type UserHabitPayload = {
+  category?: number | null;
+  activity_name?: string;
+  description?: string;
+  duration?: number | null;
+  is_active?: boolean;
+  schedule_time?: string | null;
+};
+
+export const editUserHabit = (id: number, data: Partial<UserHabitPayload>) =>
+  requestJson(`/api/habits/${id}/edit/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  }).then(extractData);
+
+export const deleteUserHabit = (id: number) =>
+  requestJson(`/api/habits/${id}/delete/`, { method: "DELETE" });
+
 export type AdminHabit = {
   id: number;
   user: number;

@@ -77,6 +77,13 @@ class HabitSerializer(serializers.ModelSerializer):
         material = self._resolve_material(obj)
         return material.material_type if material else None
 
+    def validate_template_id(self, value):
+        # Users may adopt a template on create, but never re-link an
+        # existing (user-created) habit to a template via the edit API.
+        if self.instance is not None:
+            raise serializers.ValidationError('template_id cannot be changed after creation.')
+        return value
+
     def create(self, validated_data):
         validated_data.pop('template_id', None)
         request = self.context.get('request')

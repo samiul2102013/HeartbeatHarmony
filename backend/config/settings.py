@@ -60,6 +60,13 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'config.urls'
 AUTH_USER_MODEL = 'accounts.User'
 
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
 DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
@@ -152,17 +159,29 @@ TEMPLATES = [{
 }]
 
 
-# Email — add at the bottom of config/settings.py
+# Email
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@heartbeatharmony.com')
 
-# Gmail SMTP settings (only used when EMAIL_BACKEND is SMTP)
+# SMTP settings (only used when EMAIL_BACKEND is SMTP)
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587') or '587')
 EMAIL_USE_TLS = (os.getenv('EMAIL_USE_TLS', 'True') or 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10') or '10')
+EMAIL_USE_SSL = (os.getenv('EMAIL_USE_SSL', 'False') or 'False') == 'True'
+
+# Validate SMTP config at startup – fail fast in production instead of silently dropping OTPs
+if EMAIL_BACKEND == 'django.core.mail.backends.smtp.EmailBackend':
+    if not DEBUG and (not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD):
+        import warnings
+        warnings.warn(
+            "SMTP EmailBackend is configured but EMAIL_HOST_USER or EMAIL_HOST_PASSWORD is empty – "
+            "OTP emails will fail. Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in production env.",
+            RuntimeWarning,
+        )
 
 
 
@@ -289,6 +308,11 @@ LOGGING = {
         'django.request': {
             'handlers': ['console'],
             'level': 'ERROR',
+        },
+        'django.core.mail': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
         },
     },
 }

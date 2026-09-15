@@ -91,10 +91,32 @@ export async function verifyEmail(token: string) {
   });
 }
 
+/** OTP-based verification (mobile flow): email + 6-digit code */
+export async function verifyEmailOtp(email: string, otp: string) {
+  return requestJson("/api/auth/verify-email/", {
+    method: "POST",
+    body: JSON.stringify({ email, otp }),
+  });
+}
+
+export async function verifyResetOtp(email: string, otp: string) {
+  return requestJson("/api/auth/verify-reset-otp/", {
+    method: "POST",
+    body: JSON.stringify({ email, otp }),
+  });
+}
+
 export async function resetPassword(token: string, newPassword: string) {
   return requestJson("/api/auth/reset-password/", {
     method: "POST",
     body: JSON.stringify({ token, new_password: newPassword }),
+  });
+}
+
+export async function resetPasswordWithOtp(email: string, otp: string, newPassword: string) {
+  return requestJson("/api/auth/reset-password/", {
+    method: "POST",
+    body: JSON.stringify({ email, otp, new_password: newPassword }),
   });
 }
 

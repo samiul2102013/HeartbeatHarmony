@@ -7,6 +7,8 @@ urlpatterns = [
     re_path(r'^habits/?$', views.HabitListCreateView.as_view()),
     re_path(r'^habits/reminders/today/?$', views.HabitReminderTodayView.as_view()),
     re_path(r'^habits/(?P<pk>\d+)/done/?$', views.HabitMarkDoneView.as_view()),
+    re_path(r'^habits/(?P<pk>\d+)/edit/?$', views.UserHabitEditView.as_view()),
+    re_path(r'^habits/(?P<pk>\d+)/delete/?$', views.UserHabitDeleteView.as_view()),
 
     # Admin
     re_path(r'^admin/categories/?$', views.AdminCategoryListCreateView.as_view()),
